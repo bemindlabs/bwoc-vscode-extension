@@ -67,3 +67,23 @@ describe("parseStatus", () => {
     expect(() => parseStatus(JSON.stringify({ agents: [] }))).toThrow();
   });
 });
+
+describe("parseRunResult", () => {
+  it("maps the bwoc run --json envelope", async () => {
+    const { parseRunResult } = await import("../src/bwoc/cli");
+    const out = JSON.stringify({
+      agent: "agent-anna",
+      backend: "claude",
+      task: "do x",
+      exit_code: 0,
+      duration_ms: 1234,
+      output: "done",
+    });
+    expect(parseRunResult(out)).toEqual({
+      agent: "agent-anna",
+      exitCode: 0,
+      durationMs: 1234,
+      output: "done",
+    });
+  });
+});

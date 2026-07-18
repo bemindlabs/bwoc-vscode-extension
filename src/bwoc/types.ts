@@ -24,10 +24,20 @@ export interface AgentDetail extends AgentSummary {
 
 /** Transport-agnostic view of the fleet. P1 ships only the CLI backend; a bwocd
  *  (signed-HTTP) backend lands in P2 behind the same interface. */
+/** Result of `bwoc run --task … <agent> --json` — one headless task. */
+export interface RunResult {
+  agent: string;
+  exitCode: number;
+  durationMs: number;
+  output: string;
+}
+
 export interface BwocClient {
   list(): Promise<AgentSummary[]>;
   status(agentId: string): Promise<AgentDetail>;
   /** Append a message to an agent's inbox (as the human operator). Returns the
    *  backend's confirmation line. */
   send(to: string, message: string): Promise<string>;
+  /** Run a single task on an agent non-interactively and capture the result. */
+  run(agentId: string, task: string): Promise<RunResult>;
 }

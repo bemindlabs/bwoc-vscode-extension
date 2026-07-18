@@ -39,6 +39,17 @@ async function pickAgent(client: BwocClient, placeHolder: string): Promise<strin
   return pick?.label;
 }
 
+/** Resolve an agent id from a command argument that may be a plain id (a tree
+ *  item's click command passes the id string) or the Fleet tree node itself
+ *  (a right-click `view/item/context` menu passes the node). */
+function agentIdFrom(arg: unknown): string | undefined {
+  if (typeof arg === "string") {
+    return arg;
+  }
+  const node = arg as { agent?: { id?: string } } | undefined;
+  return typeof node?.agent?.id === "string" ? node.agent.id : undefined;
+}
+
 /**
  * Register the command-palette actions. `getClient` returns the *current*
  * backend (it is rebuilt when settings change), so commands always run against
@@ -49,9 +60,9 @@ export function registerCommands(
   getClient: () => BwocClient,
   output: vscode.OutputChannel,
 ): void {
-  const sendMessage = async (preselected?: string) => {
+  const sendMessage = async (arg?: unknown) => {
     const client = getClient();
-    const to = preselected ?? (await pickAgent(client, "Send a message to which agent?"));
+    const to = agentIdFrom(arg) ?? (await pickAgent(client, "Send a message to which agent?"));
     if (!to) {
       return;
     }
@@ -72,7 +83,7 @@ export function registerCommands(
     }
   };
 
-  const openChat = async (preselected?: string) => {
+  const openChat = async (arg?: unknown) => {
     // Chat drives a local `bwoc-harness --chat` subprocess in the agent's dir,
     // so it needs a local workspace — not a remote bwocd host.
     const cfg = vscode.workspace.getConfiguration("bwoc");
@@ -83,7 +94,7 @@ export function registerCommands(
       return;
     }
     const client = getClient();
-    const to = preselected ?? (await pickAgent(client, "Open a chat with which agent?"));
+    const to = agentIdFrom(arg) ?? (await pickAgent(client, "Open a chat with which agent?"));
     if (!to) {
       return;
     }
@@ -147,10 +158,46 @@ export function registerCommands(
     }
   };
 
+  const runTask = async (arg?: unknown) => {
+    const client = getClient();
+    const to = agentIdFrom(arg) ?? (await pickAgent(client, "Run a task on which agent?"));
+    if (!to) {
+      return;
+    }
+    const task = await vscode.window.showInputBox({
+      prompt: `Task for ${to}`,
+      placeHolder: "Describe the task to run headless (captured, non-interactive)…",
+      validateInput: (v) => (v.trim().length === 0 ? "Task cannot be empty" : undefined),
+    });
+    if (task === undefined || task.trim().length === 0) {
+      return;
+    }
+    try {
+      const result = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `BWOC: running task on ${to}…`,
+          cancellable: false,
+        },
+        () => client.run(to, task),
+      );
+      output.appendLine(
+        `[run → ${to}] exit ${result.exitCode} · ${result.durationMs}ms\n${result.output}`,
+      );
+      output.show(true);
+      vscode.window.showInformationMessage(
+        `BWOC: task on ${to} finished (exit ${result.exitCode}) — output in the BWOC channel.`,
+      );
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
   const commandPalette = async () => {
     const pick = await vscode.window.showQuickPick(
       [
         { label: "$(comment-discussion) Chat with an agent", cmd: "bwoc.openChat" },
+        { label: "$(play) Run a task on an agent", cmd: "bwoc.runTask" },
         { label: "$(comment) Send message to an agent", cmd: "bwoc.sendMessage" },
         { label: "$(refresh) Refresh fleet", cmd: "bwoc.refreshFleet" },
         { label: "$(key) Enroll this controller (remote bwocd)", cmd: "bwoc.enrollController" },
@@ -165,6 +212,7 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand("bwoc.sendMessage", sendMessage),
     vscode.commands.registerCommand("bwoc.openChat", openChat),
+    vscode.commands.registerCommand("bwoc.runTask", runTask),
     vscode.commands.registerCommand("bwoc.enrollController", enrollController),
     vscode.commands.registerCommand("bwoc.commandPalette", commandPalette),
   );
