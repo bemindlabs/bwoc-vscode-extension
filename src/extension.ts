@@ -7,16 +7,19 @@ import { InboxWatcher } from "./inbox";
 import { registerMcpProvider } from "./mcp";
 import { FleetStatusBar } from "./statusBar";
 import { FleetProvider } from "./views/fleetProvider";
+import { TeamsProvider } from "./views/teamsProvider";
 
 export function activate(context: vscode.ExtensionContext): void {
   let client = createClient(context);
 
   const fleet = new FleetProvider(client);
+  const teams = new TeamsProvider(client);
   const statusBar = new FleetStatusBar();
   const output = vscode.window.createOutputChannel("BWOC");
 
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider("bwocFleet", fleet),
+    vscode.window.registerTreeDataProvider("bwocTeams", teams),
     statusBar,
     output,
   );
@@ -44,6 +47,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("bwoc.refreshFleet", refresh),
+    vscode.commands.registerCommand("bwoc.refreshTeams", () => teams.refresh()),
     vscode.commands.registerCommand(
       "bwoc.openAgentDetail",
       async (arg?: unknown) => {
@@ -74,6 +78,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (e.affectsConfiguration("bwoc")) {
         client = createClient(context);
         fleet.setClient(client);
+        teams.setClient(client);
         void statusBar.update(client);
         inbox.start(pollSeconds());
       }

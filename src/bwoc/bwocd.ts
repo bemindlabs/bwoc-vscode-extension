@@ -167,4 +167,13 @@ export class BwocdBackend implements BwocClient {
       "running a task over a remote bwocd host is not supported yet — run against a local workspace.",
     );
   }
+
+  async teams(): Promise<import("./types").Team[]> {
+    // bwocd exposes no team/task routes yet; teams are a local-workspace view.
+    throw new BwocdError("teams are not available over a remote bwocd host yet.");
+  }
+
+  async tasks(_team: string): Promise<import("./types").Task[]> {
+    throw new BwocdError("tasks are not available over a remote bwocd host yet.");
+  }
 }
