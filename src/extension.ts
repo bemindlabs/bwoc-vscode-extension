@@ -31,7 +31,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerMcpProvider(context);
 
   // Inbox notifications: poll the fleet and notify on new arrivals.
-  const inbox = new InboxWatcher(() => client);
+  const inbox = new InboxWatcher(() => client, output);
   context.subscriptions.push(inbox);
   const pollSeconds = () =>
     vscode.workspace.getConfiguration("bwoc").get<number>("inbox.pollSeconds", 60);

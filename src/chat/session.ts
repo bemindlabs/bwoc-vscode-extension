@@ -31,11 +31,16 @@ export function buildChatSpawn(cfg: ChatConfig): ChatSpawn {
     bin === "bwoc" || !bin.includes(path.sep)
       ? "bwoc-harness"
       : path.join(path.dirname(bin), "bwoc-harness");
-  return {
-    command,
-    args: ["--chat", "--backend", cfg.backend, "--model", cfg.model],
-    cwd: cfg.agentDir,
-  };
+  const args = ["--chat", "--backend", cfg.backend, "--model", cfg.model];
+  // B3 mitigation: the harness --chat path validates the raw model string and
+  // does NOT resolve "auto" the way the batch path does, so an auto-model agent
+  // fails to start. Skip the check here so chat launches. FRAMEWORK FOLLOW-UP:
+  // teach bwoc-harness --chat to resolve "auto" like the batch path (then this
+  // special-case can be dropped).
+  if (cfg.model === "auto") {
+    args.push("--skip-model-check");
+  }
+  return { command, args, cwd: cfg.agentDir };
 }
 
 /**
@@ -83,13 +88,23 @@ export class ChatSession {
         }
       }
     });
+    // Swallow stdin stream errors (e.g. EPIPE when the child exits mid-write):
+    // an unhandled 'error' on stdin would crash the extension host. send() and
+    // dispose() are already guarded, but a write racing the exit lands here.
+    child.stdin.on("error", () => {});
     child.on("error", (e) =>
       this.emitter.emit("event", {
         type: "error",
         message: `${command} error: ${e.message}`,
       } satisfies ChatEvent),
     );
-    child.on("exit", (code) => this.emitter.emit("exit", code));
+    child.on("exit", (code) => {
+      // Flush any trailing non-newline stdout line so a final event isn't lost,
+      // then drop the handle so send()/dispose() never write to closed stdin.
+      this.flushTail();
+      this.child = undefined;
+      this.emitter.emit("exit", code);
+    });
   }
 
   /** Feed a stdout chunk through the line buffer, emitting each complete event. */
@@ -106,16 +121,45 @@ export class ChatSession {
     }
   }
 
+  /** Emit any buffered, non-newline-terminated final line (called on exit). */
+  private flushTail(): void {
+    const line = this.stdoutBuf;
+    this.stdoutBuf = "";
+    if (line) {
+      const ev = parseEventLine(line);
+      if (ev) {
+        this.emitter.emit("event", ev);
+      }
+    }
+  }
+
+  /** True while the child is live and its stdin is safe to write. */
+  private isWritable(): boolean {
+    return !!this.child && this.child.exitCode === null && !this.child.killed;
+  }
+
   send(input: ChatInput): void {
+    if (!this.isWritable()) {
+      return; // child has exited — writing would raise EPIPE.
+    }
     this.child?.stdin.write(inputLine(input));
   }
 
   dispose(): void {
-    if (this.child) {
-      this.send({ type: "quit" });
-      this.child.stdin.end();
-      this.child.kill();
-      this.child = undefined;
+    const child = this.child;
+    this.child = undefined;
+    if (child) {
+      if (child.exitCode === null && !child.killed) {
+        // Ask the harness to quit, then close stdin and reap. Guarded so a
+        // stdin already torn down by the child's exit can't throw EPIPE.
+        try {
+          child.stdin.write(inputLine({ type: "quit" }));
+          child.stdin.end();
+        } catch {
+          /* stdin already closed */
+        }
+        child.kill();
+      }
     }
     this.emitter.removeAllListeners();
   }

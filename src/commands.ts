@@ -2,7 +2,7 @@ import * as path from "node:path";
 
 import * as vscode from "vscode";
 
-import { activeWorkspaceRoot, BwocCliError, type BwocClient } from "./bwoc";
+import { activeWorkspaceRoot, BwocCliError, BwocdBackend, type BwocClient } from "./bwoc";
 import { BwocdError } from "./bwoc";
 import { ChatPanel } from "./chat/panel";
 import { buildChatSpawn, ChatSession } from "./chat/session";
@@ -99,13 +99,52 @@ export function registerCommands(
       vscode.window.showErrorMessage("BWOC: no workspace root — open a folder containing .bwoc/.");
       return;
     }
+    const model = detail.primaryModel || "auto";
+    if (model === "auto") {
+      // B3: harness --chat can't resolve "auto" yet, so buildChatSpawn passes
+      // --skip-model-check as a mitigation. Surface it so the operator knows the
+      // model wasn't validated. FRAMEWORK FOLLOW-UP: resolve "auto" in --chat.
+      output.appendLine(
+        `[chat → ${to}] model is "auto"; launching with --skip-model-check (harness --chat can't resolve "auto" yet).`,
+      );
+    }
     const spawnSpec = buildChatSpawn({
       bwocBinaryPath: cfg.get<string>("binaryPath", "bwoc") || "bwoc",
       agentDir: path.join(wsRoot, detail.path),
       backend: detail.backend,
-      model: detail.primaryModel || "auto",
+      model,
     });
     new ChatPanel(to, new ChatSession(spawnSpec)).reveal();
+  };
+
+  const enrollController = async () => {
+    // Remote (bwocd) only: the CLI backend needs no enrollment. A fresh
+    // controller key can never be approved without this POST /enroll step, so
+    // without it the remote backend 401s forever (dead-on-arrival).
+    const client = getClient();
+    if (!(client instanceof BwocdBackend)) {
+      vscode.window.showInformationMessage(
+        "BWOC: enrollment applies to a remote bwocd host. Set bwoc.remote.url first.",
+      );
+      return;
+    }
+    try {
+      const { controllerId, publicKeyHex } = await client.enroll();
+      output.appendLine(
+        `[enroll] requested — approve on the bwocd host:\n  controller id: ${controllerId}\n  public key:    ${publicKeyHex}`,
+      );
+      output.show(true);
+      const copy = "Copy public key";
+      const choice = await vscode.window.showInformationMessage(
+        `BWOC: enrollment requested for "${controllerId}". Have the operator approve it on the bwocd host (details in the BWOC output channel).`,
+        copy,
+      );
+      if (choice === copy) {
+        await vscode.env.clipboard.writeText(publicKeyHex);
+      }
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
   };
 
   const commandPalette = async () => {
@@ -114,6 +153,7 @@ export function registerCommands(
         { label: "$(comment-discussion) Chat with an agent", cmd: "bwoc.openChat" },
         { label: "$(comment) Send message to an agent", cmd: "bwoc.sendMessage" },
         { label: "$(refresh) Refresh fleet", cmd: "bwoc.refreshFleet" },
+        { label: "$(key) Enroll this controller (remote bwocd)", cmd: "bwoc.enrollController" },
       ],
       { placeHolder: "BWOC — pick an action" },
     );
@@ -125,6 +165,7 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand("bwoc.sendMessage", sendMessage),
     vscode.commands.registerCommand("bwoc.openChat", openChat),
+    vscode.commands.registerCommand("bwoc.enrollController", enrollController),
     vscode.commands.registerCommand("bwoc.commandPalette", commandPalette),
   );
 }
