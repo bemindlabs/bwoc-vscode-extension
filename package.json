@@ -1,0 +1,94 @@
+{
+  "name": "bwoc-vscode-extension",
+  "displayName": "BWOC Fleet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Operate your BWOC agent fleet from VS Code — a native control surface over the bwoc CLI (bwocd remote + Copilot integration to come).",
+  "publisher": "bemindlabs",
+  "homepage": "https://github.com/bemindlabs/bwoc-vscode-extension",
+  "repository": "https://github.com/bemindlabs/bwoc-vscode-extension",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "keywords": ["bwoc", "agents", "fleet", "orchestration"],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "bwoc",
+          "title": "BWOC",
+          "icon": "media/bwoc.svg"
+        }
+      ]
+    },
+    "views": {
+      "bwoc": [
+        {
+          "id": "bwocFleet",
+          "name": "Fleet",
+          "icon": "media/bwoc.svg"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "bwoc.refreshFleet",
+        "title": "BWOC: Refresh Fleet",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "bwoc.openAgentDetail",
+        "title": "BWOC: Show Agent Detail"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "bwoc.refreshFleet",
+          "when": "view == bwocFleet",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "BWOC",
+      "properties": {
+        "bwoc.binaryPath": {
+          "type": "string",
+          "default": "bwoc",
+          "description": "Path to the `bwoc` CLI binary. Defaults to `bwoc` on PATH."
+        },
+        "bwoc.workspace": {
+          "type": "string",
+          "default": "",
+          "description": "BWOC workspace root. Empty = auto-detect (first folder containing `.bwoc/`, else the first workspace folder)."
+        },
+        "bwoc.remote.url": {
+          "type": "string",
+          "default": "",
+          "description": "Reserved for P2 — bwocd control-daemon URL for remote/tailnet fleets. Unused in P1 (CLI-only)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run build",
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
