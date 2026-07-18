@@ -8,6 +8,11 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+- **P2 (part 2) — command palette.** `BWOC: Send Message to Agent` (QuickPick the
+  agent → InputBox the message → `bwoc send`) and a `BWOC: Commands…` action hub,
+  with results in a shared **BWOC** output channel. Extends `BwocClient` with
+  `send()` (CLI implemented; bwocd remote-send lands with the gated mutation slice).
+
 - **P2 (part 1) — bwocd remote transport.** A signed-HTTP `BwocdBackend` behind
   the same `BwocClient` interface, selected when `bwoc.remote.url` is set (remote
   / tailnet fleets), else the local CLI. Ports the cc-signing wire contract to

@@ -107,4 +107,10 @@ export class CliBackend implements BwocClient {
   async status(agentId: string): Promise<AgentDetail> {
     return parseStatus(await this.run(["status", agentId, "--json"]));
   }
+
+  async send(to: string, message: string): Promise<string> {
+    // `bwoc send <to> <message>` — the default sender is the human operator.
+    // Non-`--json` verb: the stdout confirmation line is returned verbatim.
+    return (await this.run(["send", to, message])).trim();
+  }
 }

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 
 import { BwocCliError, createClient } from "./bwoc";
+import { registerCommands } from "./commands";
 import { FleetStatusBar } from "./statusBar";
 import { FleetProvider } from "./views/fleetProvider";
 
@@ -9,11 +10,17 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const fleet = new FleetProvider(client);
   const statusBar = new FleetStatusBar();
+  const output = vscode.window.createOutputChannel("BWOC");
 
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider("bwocFleet", fleet),
     statusBar,
+    output,
   );
+
+  // Command-palette verbs (send message, action hub). `() => client` reads the
+  // live backend, which is rebuilt on a settings change.
+  registerCommands(context, () => client, output);
 
   const refresh = () => {
     fleet.refresh();

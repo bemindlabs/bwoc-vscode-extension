@@ -99,4 +99,12 @@ export class BwocdBackend implements BwocClient {
       },
     };
   }
+
+  async send(_to: string, _message: string): Promise<string> {
+    // The bwocd inbox-write route is capability-gated and lands with the P2
+    // mutation slice; until then remote send is not wired.
+    throw new BwocdError(
+      "sending over a remote bwocd host is not supported yet — run against a local workspace, or use bwoc send in a terminal.",
+    );
+  }
 }

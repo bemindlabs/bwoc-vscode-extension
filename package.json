@@ -43,6 +43,15 @@
       {
         "command": "bwoc.openAgentDetail",
         "title": "BWOC: Show Agent Detail"
+      },
+      {
+        "command": "bwoc.sendMessage",
+        "title": "BWOC: Send Message to Agent",
+        "icon": "$(comment)"
+      },
+      {
+        "command": "bwoc.commandPalette",
+        "title": "BWOC: Commands…"
       }
     ],
     "menus": {
