@@ -55,6 +55,11 @@
         "icon": "$(comment-discussion)"
       },
       {
+        "command": "bwoc.enrollController",
+        "title": "BWOC: Enroll This Controller (remote bwocd)",
+        "icon": "$(key)"
+      },
+      {
         "command": "bwoc.commandPalette",
         "title": "BWOC: Commands…"
       }

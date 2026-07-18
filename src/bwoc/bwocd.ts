@@ -10,6 +10,10 @@ import type { AgentDetail, AgentSummary, BwocClient } from "./types";
 /** Surfaced to the UI as an actionable notification. */
 export class BwocdError extends Error {}
 
+/** Bound every bwocd request the same way the CLI backend bounds itself (15s),
+ *  so a hung daemon can't wedge list()/status()/inbox forever. */
+const REQUEST_TIMEOUT_MS = 15000;
+
 interface RawAgent {
   id: string;
   backend?: string;
@@ -41,24 +45,47 @@ export class BwocdBackend implements BwocClient {
 
   /** Signed GET. `path` may carry a query string; it is canonicalized for signing. */
   private async get<T>(path: string): Promise<T> {
+    return this.request<T>("GET", path);
+  }
+
+  /** Signed request. `path` may carry a query string; it is canonicalized for
+   *  signing. `body`, when present, is JSON-encoded and its hash is signed. */
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const [pathname, query] = path.split("?", 2);
     const canonical = canonicalPath(pathname, query ?? null);
-    const headers = await this.signer.buildSignedHeaders("GET", canonical, new Uint8Array(0));
+    const bodyBytes =
+      body === undefined ? new Uint8Array(0) : new TextEncoder().encode(JSON.stringify(body));
+    const headers = await this.signer.buildSignedHeaders(method, canonical, bodyBytes);
+    if (body !== undefined) {
+      headers["Content-Type"] = "application/json";
+    }
 
     let res: Response;
     try {
-      res = await fetch(this.base + path, { method: "GET", headers });
+      res = await fetch(this.base + path, {
+        method,
+        headers,
+        body: body === undefined ? undefined : bodyBytes,
+        // Guard against a hung daemon — the CLI backend bounds itself the same way.
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
     } catch (e) {
-      throw new BwocdError(`bwocd unreachable at ${this.base}: ${(e as Error).message}`);
-    }
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      if (res.status === 401 || res.status === 403) {
+      const err = e as Error;
+      if (err.name === "TimeoutError" || err.name === "AbortError") {
         throw new BwocdError(
-          `bwocd rejected this controller (${res.status}). Enroll it and have the operator approve it with the caps you need.`,
+          `bwocd at ${this.base} did not respond within ${REQUEST_TIMEOUT_MS / 1000}s — is the daemon reachable over the tailnet?`,
         );
       }
-      throw new BwocdError(`bwocd ${res.status}: ${body || res.statusText}`);
+      throw new BwocdError(`bwocd unreachable at ${this.base}: ${err.message}`);
+    }
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      if (res.status === 401 || res.status === 403) {
+        throw new BwocdError(
+          `bwocd rejected this controller (${res.status}). Enroll it (BWOC: Enroll This Controller) and have the operator approve it with the caps you need.`,
+        );
+      }
+      throw new BwocdError(`bwocd ${res.status}: ${errBody || res.statusText}`);
     }
     const text = await res.text();
     return (text ? JSON.parse(text) : null) as T;
@@ -78,7 +105,16 @@ export class BwocdBackend implements BwocClient {
   }
 
   async status(agentId: string): Promise<AgentDetail> {
-    const d = await this.get<RawDetail>(`/agents/${encodeURIComponent(agentId)}/status`);
+    // Unlike /fleet, bwocd's /agents/:id/status returns `bwoc status --json`
+    // VERBATIM — `{ workspace, agents: [ {…the real fields…} ] }` — it does NOT
+    // unwrap. Read agents[0]; a flat read here silently defaults every field.
+    const snap = await this.get<{ agents?: RawDetail[] | null }>(
+      `/agents/${encodeURIComponent(agentId)}/status`,
+    );
+    const d = snap.agents?.[0];
+    if (!d) {
+      throw new BwocdError(`bwocd returned no status for ${agentId} (empty agents[]).`);
+    }
     return {
       id: d.id ?? agentId,
       backend: d.backend ?? "",
@@ -98,6 +134,22 @@ export class BwocdBackend implements BwocClient {
         skills: d.resources?.skills ?? 0,
       },
     };
+  }
+
+  /**
+   * Self-enroll this controller identity: POST /enroll with the controller id
+   * and its ed25519 public key so the operator can approve it. Without this a
+   * fresh controller key can never be approved and bwocd 401s forever (remote
+   * backend dead-on-arrival). Returns the identity so the caller can show the
+   * id + public key the operator must approve.
+   */
+  async enroll(): Promise<{ controllerId: string; publicKeyHex: string }> {
+    const { controllerId, publicKeyHex } = await this.signer.ensureIdentity();
+    await this.request<null>("POST", "/enroll", {
+      id: controllerId,
+      public_key: publicKeyHex,
+    });
+    return { controllerId, publicKeyHex };
   }
 
   async send(_to: string, _message: string): Promise<string> {

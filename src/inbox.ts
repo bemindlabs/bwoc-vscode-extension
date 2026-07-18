@@ -31,8 +31,14 @@ export function diffInbox(prev: Map<string, number>, curr: AgentSummary[]): Inbo
 export class InboxWatcher {
   private timer?: ReturnType<typeof setInterval>;
   private snapshot = new Map<string, number>();
+  /** Guards against overlapping ticks — a poll slower than pollSeconds (e.g. a
+   *  hung bwocd) must not stack ticks that race the snapshot write. */
+  private inFlight = false;
 
-  constructor(private readonly getClient: () => BwocClient) {}
+  constructor(
+    private readonly getClient: () => BwocClient,
+    private readonly output?: vscode.OutputChannel,
+  ) {}
 
   start(pollSeconds: number): void {
     this.stop();
@@ -44,20 +50,31 @@ export class InboxWatcher {
   }
 
   private async tick(prime: boolean): Promise<void> {
-    let agents: AgentSummary[];
+    if (this.inFlight) {
+      return; // a previous tick is still running — skip this one, don't stack.
+    }
+    this.inFlight = true;
     try {
-      agents = await this.getClient().list();
-    } catch {
-      return;
-    }
-    if (!prime) {
-      for (const c of diffInbox(this.snapshot, agents)) {
-        void vscode.window.showInformationMessage(
-          `BWOC: ${c.id} has ${c.delta} new inbox message${c.delta === 1 ? "" : "s"} (${c.count} pending).`,
-        );
+      let agents: AgentSummary[];
+      try {
+        agents = await this.getClient().list();
+      } catch (e) {
+        // Fail-quiet in the UI (the Fleet view already reports outages), but log
+        // so a persistently-failing poll is diagnosable instead of vanishing.
+        this.output?.appendLine(`[inbox] poll failed: ${(e as Error).message}`);
+        return;
       }
+      if (!prime) {
+        for (const c of diffInbox(this.snapshot, agents)) {
+          void vscode.window.showInformationMessage(
+            `BWOC: ${c.id} has ${c.delta} new inbox message${c.delta === 1 ? "" : "s"} (${c.count} pending).`,
+          );
+        }
+      }
+      this.snapshot = new Map(agents.map((a) => [a.id, a.inboxCount]));
+    } finally {
+      this.inFlight = false;
     }
-    this.snapshot = new Map(agents.map((a) => [a.id, a.inboxCount]));
   }
 
   stop(): void {

@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import type { AgentSummary } from "../src/bwoc/types";
-import { diffInbox } from "../src/inbox";
+import type { AgentSummary, BwocClient } from "../src/bwoc/types";
+import { diffInbox, InboxWatcher } from "../src/inbox";
 
 const agent = (id: string, inboxCount: number): AgentSummary => ({
   id,
@@ -37,5 +37,34 @@ describe("diffInbox", () => {
       ["b", 5],
     ]);
     expect(diffInbox(prev, [agent("a", 5), agent("b", 2)])).toEqual([]);
+  });
+});
+
+describe("InboxWatcher in-flight guard (B6)", () => {
+  it("skips a tick while a previous poll is still running", async () => {
+    // A poll slower than pollSeconds must not stack overlapping ticks.
+    let resolveList!: (a: AgentSummary[]) => void;
+    const list = vi.fn(
+      () => new Promise<AgentSummary[]>((r) => (resolveList = r)),
+    );
+    const client = { list, status: vi.fn(), send: vi.fn() } as unknown as BwocClient;
+    const watcher = new InboxWatcher(() => client);
+
+    // Reach the private tick directly to drive overlap deterministically.
+    const tick = (watcher as unknown as { tick: (p: boolean) => Promise<void> }).tick.bind(
+      watcher,
+    );
+
+    const first = tick(true); // starts, awaits list — inFlight is now true
+    await tick(true); // overlapping tick — must early-return without polling
+    expect(list).toHaveBeenCalledTimes(1);
+
+    resolveList([]);
+    await first;
+
+    // Once the first poll finished, a later tick is free to poll again.
+    resolveList = () => {};
+    void tick(true);
+    expect(list).toHaveBeenCalledTimes(2);
   });
 });

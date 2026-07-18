@@ -43,6 +43,12 @@ describe("buildChatSpawn", () => {
         .command,
     ).toBe("bwoc-harness");
   });
+  it("passes --skip-model-check only for the unresolved 'auto' model (B3 mitigation)", () => {
+    const auto = buildChatSpawn({ bwocBinaryPath: "bwoc", agentDir: "/x", backend: "b", model: "auto" });
+    expect(auto.args).toEqual(["--chat", "--backend", "b", "--model", "auto", "--skip-model-check"]);
+    const pinned = buildChatSpawn({ bwocBinaryPath: "bwoc", agentDir: "/x", backend: "b", model: "m1" });
+    expect(pinned.args).not.toContain("--skip-model-check");
+  });
 });
 
 describe("ChatSession", () => {

@@ -10,7 +10,7 @@ import type { BwocClient } from "./types";
 
 export * from "./types";
 export { BwocCliError } from "./cli";
-export { BwocdError } from "./bwocd";
+export { BwocdBackend, BwocdError } from "./bwocd";
 
 /** The active workspace root using the same resolution as the CLI backend:
  *  `bwoc.workspace` setting → first folder with `.bwoc/` → first folder → "".
