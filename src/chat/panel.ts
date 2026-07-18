@@ -61,6 +61,8 @@ function renderHtml(agent: string): string {
   .sys { font-size: 0.8em; opacity: 0.6; }
   .perm { background: var(--vscode-inputValidation-warningBackground, #5a4a00); padding: 8px 10px; border-radius: 6px; margin: 6px 0; }
   .perm button { margin-right: 6px; }
+  #toolbar { display: flex; gap: 10px; align-items: center; padding: 6px 8px; border-top: 1px solid var(--vscode-panel-border); font-size: 0.85em; opacity: 0.9; }
+  #toolbar select { background: var(--vscode-dropdown-background); color: var(--vscode-dropdown-foreground); border: 1px solid var(--vscode-dropdown-border, #0000); border-radius: 4px; padding: 2px 4px; font: inherit; }
   #bar { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--vscode-panel-border); }
   #input { flex: 1; background: var(--vscode-input-background); color: var(--vscode-input-foreground);
            border: 1px solid var(--vscode-input-border, #0000); padding: 6px 8px; border-radius: 4px; font: inherit; }
@@ -71,6 +73,17 @@ function renderHtml(agent: string): string {
 </head>
 <body>
   <div id="log"><div class="sys">Starting chat with ${escapeHtml(agent)}…</div></div>
+  <div id="toolbar">
+    <label>mode
+      <select id="mode">
+        <option value="default">default</option>
+        <option value="accept_edits">accept edits</option>
+        <option value="plan">plan</option>
+        <option value="bypass">bypass</option>
+      </select>
+    </label>
+    <button id="forget" title="Reset the conversation context">Forget context</button>
+  </div>
   <div id="bar">
     <input id="input" type="text" placeholder="Message ${escapeHtml(agent)}… (Enter to send)" autofocus />
     <button id="send">Send</button>
@@ -99,6 +112,14 @@ function renderHtml(agent: string): string {
   }
   document.getElementById("send").addEventListener("click", send);
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); send(); } });
+  document.getElementById("mode").addEventListener("change", (e) => {
+    vscode.postMessage({ type: "set_mode", mode: e.target.value });
+  });
+  document.getElementById("forget").addEventListener("click", () => {
+    vscode.postMessage({ type: "forget" });
+    add("sys", "context forget requested");
+    current = null;
+  });
 
   window.addEventListener("message", (ev) => {
     const m = ev.data;
@@ -123,6 +144,8 @@ function renderHtml(agent: string): string {
         log.appendChild(p); log.scrollTop = log.scrollHeight; break;
       }
       case "mode_changed": add("sys", "mode → " + m.mode); break;
+      case "team_message": add("sys", "👥 " + m.from + ": " + m.text); break;
+      case "compacted": add("sys", "context compacted — removed " + m.removed + " message(s)"); break;
       case "turn_end": current = null; break;
       case "error": add("err", "error: " + m.message); break;
       case "stderr": add("sys", m.line); break;
