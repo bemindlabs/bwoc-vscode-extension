@@ -8,6 +8,12 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+- **P4 — Copilot integration.** An `@bwoc` chat participant for Copilot Chat
+  (`@bwoc /list`, `@bwoc /status <agent>`) streaming fleet info as markdown, and
+  a `bwoc-mcp` MCP server provider so the whole workspace becomes callable in
+  Copilot agent-mode (server command configurable via `bwoc.mcp.command`). Both
+  no-op gracefully on editors without the API. Requires VS Code ^1.101.
+
 - **P3 — streaming chat webview.** `BWOC: Chat with Agent` opens a webview that
   drives a local `bwoc-harness --chat` subprocess over the `chat_proto` NDJSON
   protocol: token streaming, tool calls/results, inline permission prompts
