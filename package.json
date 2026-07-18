@@ -1,7 +1,7 @@
 {
   "name": "bwoc-vscode-extension",
   "displayName": "BWOC Fleet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Operate your BWOC agent fleet from VS Code — a native control surface over the bwoc CLI (bwocd remote + Copilot integration to come).",
   "publisher": "bemindlabs",
@@ -11,8 +11,15 @@
   "engines": {
     "vscode": "^1.101.0"
   },
-  "categories": ["Other"],
-  "keywords": ["bwoc", "agents", "fleet", "orchestration"],
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "bwoc",
+    "agents",
+    "fleet",
+    "orchestration"
+  ],
   "main": "./dist/extension.js",
   "activationEvents": [],
   "contributes": {
@@ -112,8 +119,14 @@
         "description": "Query and coordinate your BWOC agent fleet",
         "isSticky": true,
         "commands": [
-          { "name": "list", "description": "List all agents in the workspace" },
-          { "name": "status", "description": "Show an agent's health and config" }
+          {
+            "name": "list",
+            "description": "List all agents in the workspace"
+          },
+          {
+            "name": "status",
+            "description": "Show an agent's health and config"
+          }
         ]
       }
     ],
