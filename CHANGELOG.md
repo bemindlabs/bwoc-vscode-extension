@@ -6,6 +6,21 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-07-19
+
+### Fixed
+
+Six bugs surfaced by an investigation of the rapid P1–P5 build (the local/CLI path was unaffected; these harden the remote / chat / inbox surfaces):
+
+- **bwocd `status()` parsed the response flat** — bwocd's `/agents/:id/status` returns `bwoc status --json` verbatim (`{ workspace, agents: [ … ] }`), so every field silently defaulted (blank remote detail; remote chat spawned with an empty backend/cwd). Now reads `agents[0]` and errors on an empty envelope.
+- **bwocd requests had no timeout** — a hung daemon hung `list()`/`status()`/inbox forever. All signed requests now use `AbortSignal.timeout(15s)`, matching the CLI path.
+- **Chat subprocess could crash the extension host (EPIPE)** — the `exit` handler now nulls the child, `send()`/`dispose()` guard against an exited child, and a `stdin` error listener swallows EPIPE; the trailing stdout line is flushed on exit.
+- **Inbox poller could overlap and race** — an `inFlight` guard skips a tick while one is running, and swallowed poll errors now log to the BWOC output channel.
+- **No controller enrollment path** — a fresh key could never be approved, so remote bwocd returned 401 forever. Added `BwocdBackend.enroll()` (POST `/enroll`) and a `BWOC: Enroll Controller` command that shows the controller id + public key (copyable) and self-enrolls.
+- **Auto-model chat mitigation** — for `primaryModel: "auto"` agents the harness `--chat` path doesn't resolve the sentinel; the extension now passes `--skip-model-check` and surfaces a note. The real fix is a framework follow-up ([BWOC-Framework #347](https://github.com/bemindlabs/BWOC-Framework/issues/347)).
+
+## [0.1.0] — 2026-07-18
+
 ### Added
 
 - **P5 — inbox notifications + publish-ready.** An `InboxWatcher` polls the fleet
