@@ -56,19 +56,32 @@ without touching the views.
 
 | Phase | Scope | State |
 | --- | --- | --- |
-| **P1** | Read-only fleet tree + agent detail + status bar, over the local `bwoc` CLI | ✅ this scaffold |
-| P2 | Command palette over `--json` verbs + `bwocd` signed-HTTP remote transport | planned |
-| P3 | Streaming agent chat webview (`chat_proto` NDJSON) + permission prompts | planned |
-| P4 | `@bwoc` Copilot chat participant + MCP server registration | planned |
-| P5 | Teams / tasks / memory boards + inbox notifications + Marketplace publish | planned |
+| **P1** | Read-only fleet tree + agent detail + status bar, over the local `bwoc` CLI | ✅ |
+| **P2** | Command palette (send message) + `bwocd` signed-HTTP remote transport | ✅ |
+| **P3** | Streaming agent chat webview (`chat_proto` NDJSON) + permission prompts | ✅ |
+| **P4** | `@bwoc` Copilot chat participant + `bwoc-mcp` server registration | ✅ |
+| **P5** | Inbox notifications + Marketplace publish | ✅ |
 
 ## Development
 
 ```bash
 pnpm typecheck   # tsc --noEmit
-pnpm test        # vitest — pure --json parsers
+pnpm test        # vitest — pure logic (parsers, signing, chat proto, formatters)
 pnpm build       # esbuild bundle → dist/extension.js
 pnpm package     # vsce package → .vsix
+```
+
+### Publishing
+
+The extension is publish-ready (`publisher`, `repository`, `license`, and
+`engines` are set; `pnpm package` produces a clean `.vsix`). Publishing to the
+Marketplace needs a **`bemindlabs` publisher Personal Access Token** — an
+operator step, not automated:
+
+```bash
+pnpm package                         # sanity-check the .vsix
+npx vsce login bemindlabs            # once, with the PAT
+npx vsce publish                     # or: npx vsce publish patch
 ```
 
 ---

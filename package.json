@@ -90,6 +90,12 @@
           "type": "string",
           "default": "bwoc-mcp",
           "description": "Command that launches the bwoc-mcp server, exposed to Copilot agent-mode. Defaults to `bwoc-mcp` on PATH."
+        },
+        "bwoc.inbox.pollSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 0,
+          "description": "Seconds between inbox-notification polls. A notification is raised when an agent gains inbox messages. 0 disables inbox notifications."
         }
       }
     },
