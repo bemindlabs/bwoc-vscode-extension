@@ -38,6 +38,11 @@
           "id": "bwocFleet",
           "name": "Fleet",
           "icon": "media/bwoc.svg"
+        },
+        {
+          "id": "bwocTeams",
+          "name": "Teams & Tasks",
+          "icon": "media/bwoc.svg"
         }
       ]
     },
@@ -45,6 +50,11 @@
       {
         "command": "bwoc.refreshFleet",
         "title": "BWOC: Refresh Fleet",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "bwoc.refreshTeams",
+        "title": "BWOC: Refresh Teams",
         "icon": "$(refresh)"
       },
       {
@@ -81,6 +91,11 @@
         {
           "command": "bwoc.refreshFleet",
           "when": "view == bwocFleet",
+          "group": "navigation"
+        },
+        {
+          "command": "bwoc.refreshTeams",
+          "when": "view == bwocTeams",
           "group": "navigation"
         }
       ],

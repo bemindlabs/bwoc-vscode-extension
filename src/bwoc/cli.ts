@@ -1,7 +1,14 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-import type { AgentDetail, AgentSummary, BwocClient, RunResult } from "./types";
+import type {
+  AgentDetail,
+  AgentSummary,
+  BwocClient,
+  RunResult,
+  Task,
+  Team,
+} from "./types";
 
 const execFileAsync = promisify(execFile);
 
@@ -65,6 +72,37 @@ export function parseStatus(stdout: string): AgentDetail {
     outOfScope: r.out_of_scope,
     resources: r.resources ?? { memories: 0, mindsets: 0, skills: 0 },
   };
+}
+
+export function parseTeams(stdout: string): Team[] {
+  const arr = JSON.parse(stdout) as Array<{
+    team: string;
+    members?: string[];
+    created_at?: string;
+  }>;
+  return (arr ?? []).map((t) => ({
+    name: t.team,
+    members: t.members ?? [],
+    createdAt: t.created_at ?? "",
+  }));
+}
+
+export function parseTasks(stdout: string): Task[] {
+  const arr = JSON.parse(stdout) as Array<{
+    id: string;
+    plan?: string;
+    claimed_by?: string | null;
+    completed_at?: string | null;
+    created_at?: string;
+  }>;
+  return (arr ?? []).map((t) => ({
+    id: t.id,
+    plan: t.plan ?? "",
+    claimedBy: t.claimed_by ?? null,
+    completedAt: t.completed_at ?? null,
+    createdAt: t.created_at ?? "",
+    state: t.completed_at ? "done" : t.claimed_by ? "claimed" : "open",
+  }));
 }
 
 export function parseRunResult(stdout: string): RunResult {
@@ -138,5 +176,13 @@ export class CliBackend implements BwocClient {
     return parseRunResult(
       await this.exec(["run", "--task", task, agentId, "--json"], 15 * 60 * 1000),
     );
+  }
+
+  async teams(): Promise<Team[]> {
+    return parseTeams(await this.exec(["team", "list", "--json"]));
+  }
+
+  async tasks(team: string): Promise<Task[]> {
+    return parseTasks(await this.exec(["task", "list", team, "--json"]));
   }
 }

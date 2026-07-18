@@ -32,9 +32,30 @@ export interface RunResult {
   output: string;
 }
 
+/** A Saṅgha team from `bwoc team list --json`. */
+export interface Team {
+  name: string;
+  members: string[];
+  createdAt: string;
+}
+
+/** One shared-task-list entry from `bwoc task list <team> --json`. */
+export interface Task {
+  id: string;
+  plan: string;
+  claimedBy: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  state: "done" | "claimed" | "open";
+}
+
 export interface BwocClient {
   list(): Promise<AgentSummary[]>;
   status(agentId: string): Promise<AgentDetail>;
+  /** Saṅgha teams in the workspace. */
+  teams(): Promise<Team[]>;
+  /** A team's shared task list. */
+  tasks(team: string): Promise<Task[]>;
   /** Append a message to an agent's inbox (as the human operator). Returns the
    *  backend's confirmation line. */
   send(to: string, message: string): Promise<string>;
