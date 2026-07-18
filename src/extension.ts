@@ -5,7 +5,7 @@ import { FleetStatusBar } from "./statusBar";
 import { FleetProvider } from "./views/fleetProvider";
 
 export function activate(context: vscode.ExtensionContext): void {
-  let client = createClient();
+  let client = createClient(context);
 
   const fleet = new FleetProvider(client);
   const statusBar = new FleetStatusBar();
@@ -44,7 +44,7 @@ export function activate(context: vscode.ExtensionContext): void {
     // Rebuild the client when relevant settings change.
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("bwoc")) {
-        client = createClient();
+        client = createClient(context);
         fleet.setClient(client);
         void statusBar.update(client);
       }

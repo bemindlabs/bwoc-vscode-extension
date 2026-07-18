@@ -8,6 +8,12 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+- **P2 (part 1) — bwocd remote transport.** A signed-HTTP `BwocdBackend` behind
+  the same `BwocClient` interface, selected when `bwoc.remote.url` is set (remote
+  / tailnet fleets), else the local CLI. Ports the cc-signing wire contract to
+  Node (`canonical.ts` byte-identical to the Rust verifier; `signer.ts` uses
+  Node Ed25519 with the controller key in VS Code SecretStorage). Golden-vector
+  and sign/verify parity tests included. Command palette lands in P2 part 2.
 - **P1 — read-only fleet control surface.** Activity-bar **Fleet** tree view over
   `bwoc list --json` with lazy per-agent detail (`bwoc status --json`), a fleet
   status-bar item, and a refresh command. CLI-first transport (`CliBackend`)
