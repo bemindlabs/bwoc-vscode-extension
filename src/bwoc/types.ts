@@ -27,4 +27,7 @@ export interface AgentDetail extends AgentSummary {
 export interface BwocClient {
   list(): Promise<AgentSummary[]>;
   status(agentId: string): Promise<AgentDetail>;
+  /** Append a message to an agent's inbox (as the human operator). Returns the
+   *  backend's confirmation line. */
+  send(to: string, message: string): Promise<string>;
 }
