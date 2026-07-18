@@ -1,7 +1,9 @@
 import * as vscode from "vscode";
 
 import { BwocCliError, createClient } from "./bwoc";
+import { registerChatParticipant } from "./chat/participant";
 import { registerCommands } from "./commands";
+import { registerMcpProvider } from "./mcp";
 import { FleetStatusBar } from "./statusBar";
 import { FleetProvider } from "./views/fleetProvider";
 
@@ -21,6 +23,11 @@ export function activate(context: vscode.ExtensionContext): void {
   // Command-palette verbs (send message, action hub). `() => client` reads the
   // live backend, which is rebuilt on a settings change.
   registerCommands(context, () => client, output);
+
+  // Copilot integration: the `@bwoc` chat participant and the bwoc-mcp server
+  // provider (both no-op gracefully on editors that lack the API).
+  registerChatParticipant(context, () => client);
+  registerMcpProvider(context);
 
   const refresh = () => {
     fleet.refresh();
