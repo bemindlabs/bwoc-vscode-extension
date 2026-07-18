@@ -62,6 +62,11 @@
         "icon": "$(comment-discussion)"
       },
       {
+        "command": "bwoc.runTask",
+        "title": "BWOC: Run Task on Agent",
+        "icon": "$(play)"
+      },
+      {
         "command": "bwoc.enrollController",
         "title": "BWOC: Enroll This Controller (remote bwocd)",
         "icon": "$(key)"
@@ -77,6 +82,28 @@
           "command": "bwoc.refreshFleet",
           "when": "view == bwocFleet",
           "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "bwoc.openChat",
+          "when": "view == bwocFleet && viewItem == bwocAgent",
+          "group": "1_act@1"
+        },
+        {
+          "command": "bwoc.runTask",
+          "when": "view == bwocFleet && viewItem == bwocAgent",
+          "group": "1_act@2"
+        },
+        {
+          "command": "bwoc.sendMessage",
+          "when": "view == bwocFleet && viewItem == bwocAgent",
+          "group": "1_act@3"
+        },
+        {
+          "command": "bwoc.openAgentDetail",
+          "when": "view == bwocFleet && viewItem == bwocAgent",
+          "group": "2_info@1"
         }
       ]
     },

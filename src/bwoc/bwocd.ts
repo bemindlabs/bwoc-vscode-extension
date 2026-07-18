@@ -159,4 +159,12 @@ export class BwocdBackend implements BwocClient {
       "sending over a remote bwocd host is not supported yet — run against a local workspace, or use bwoc send in a terminal.",
     );
   }
+
+  async run(_agentId: string, _task: string): Promise<import("./types").RunResult> {
+    // Headless task execution over a remote host is a capability-gated mutation
+    // (the /cli proxy slice); not wired yet.
+    throw new BwocdError(
+      "running a task over a remote bwocd host is not supported yet — run against a local workspace.",
+    );
+  }
 }

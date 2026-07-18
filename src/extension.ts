@@ -46,7 +46,13 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("bwoc.refreshFleet", refresh),
     vscode.commands.registerCommand(
       "bwoc.openAgentDetail",
-      async (agentId?: string) => {
+      async (arg?: unknown) => {
+        // The tree item's click command passes the id string; the right-click
+        // context menu passes the Fleet node — accept either.
+        const agentId =
+          typeof arg === "string"
+            ? arg
+            : (arg as { agent?: { id?: string } } | undefined)?.agent?.id;
         if (!agentId) {
           return;
         }

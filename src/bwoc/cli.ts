@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
-import type { AgentDetail, AgentSummary, BwocClient } from "./types";
+import type { AgentDetail, AgentSummary, BwocClient, RunResult } from "./types";
 
 const execFileAsync = promisify(execFile);
 
@@ -67,6 +67,21 @@ export function parseStatus(stdout: string): AgentDetail {
   };
 }
 
+export function parseRunResult(stdout: string): RunResult {
+  const doc = JSON.parse(stdout) as {
+    agent?: string;
+    exit_code?: number;
+    duration_ms?: number;
+    output?: string;
+  };
+  return {
+    agent: doc.agent ?? "",
+    exitCode: doc.exit_code ?? 0,
+    durationMs: doc.duration_ms ?? 0,
+    output: doc.output ?? "",
+  };
+}
+
 // ── CLI backend ─────────────────────────────────────────────────────────────
 
 export interface CliOptions {
@@ -79,14 +94,16 @@ export interface CliOptions {
 export class CliBackend implements BwocClient {
   constructor(private readonly opts: CliOptions) {}
 
-  private async run(args: string[]): Promise<string> {
+  /** Run a `bwoc` verb and capture stdout. `timeoutMs` bounds quick read/write
+   *  verbs; the long-running `run` task passes its own generous bound. */
+  private async exec(args: string[], timeoutMs = 15_000): Promise<string> {
     const full = this.opts.workspace
       ? [...args, "--workspace", this.opts.workspace]
       : args;
     try {
       const { stdout } = await execFileAsync(this.opts.binaryPath, full, {
         maxBuffer: 16 * 1024 * 1024,
-        timeout: 15_000,
+        timeout: timeoutMs,
       });
       return stdout;
     } catch (err) {
@@ -101,16 +118,25 @@ export class CliBackend implements BwocClient {
   }
 
   async list(): Promise<AgentSummary[]> {
-    return parseList(await this.run(["list", "--json"]));
+    return parseList(await this.exec(["list", "--json"]));
   }
 
   async status(agentId: string): Promise<AgentDetail> {
-    return parseStatus(await this.run(["status", agentId, "--json"]));
+    return parseStatus(await this.exec(["status", agentId, "--json"]));
   }
 
   async send(to: string, message: string): Promise<string> {
     // `bwoc send <to> <message>` — the default sender is the human operator.
     // Non-`--json` verb: the stdout confirmation line is returned verbatim.
-    return (await this.run(["send", to, message])).trim();
+    return (await this.exec(["send", to, message])).trim();
+  }
+
+  async run(agentId: string, task: string): Promise<RunResult> {
+    // `bwoc run --task <task> <agent> --json` — a single headless task, captured.
+    // Tasks are long-running, so use a generous 15-minute host timeout on top of
+    // whatever `bwoc run --timeout` the fleet enforces.
+    return parseRunResult(
+      await this.exec(["run", "--task", task, agentId, "--json"], 15 * 60 * 1000),
+    );
   }
 }
