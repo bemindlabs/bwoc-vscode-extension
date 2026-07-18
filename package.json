@@ -50,6 +50,11 @@
         "icon": "$(comment)"
       },
       {
+        "command": "bwoc.openChat",
+        "title": "BWOC: Chat with Agent",
+        "icon": "$(comment-discussion)"
+      },
+      {
         "command": "bwoc.commandPalette",
         "title": "BWOC: Commands…"
       }
