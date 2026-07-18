@@ -8,6 +8,12 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+- **P5 — inbox notifications + publish-ready.** An `InboxWatcher` polls the fleet
+  (`bwoc.inbox.pollSeconds`, default 60; 0 disables) and raises a VS Code
+  notification when an agent gains inbox messages (pure `diffInbox` never spams
+  on priming or on new agents). Marketplace metadata verified + a Publishing guide
+  in the README (actual publish needs the operator's publisher PAT).
+
 - **P4 — Copilot integration.** An `@bwoc` chat participant for Copilot Chat
   (`@bwoc /list`, `@bwoc /status <agent>`) streaming fleet info as markdown, and
   a `bwoc-mcp` MCP server provider so the whole workspace becomes callable in

@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import { BwocCliError, createClient } from "./bwoc";
 import { registerChatParticipant } from "./chat/participant";
 import { registerCommands } from "./commands";
+import { InboxWatcher } from "./inbox";
 import { registerMcpProvider } from "./mcp";
 import { FleetStatusBar } from "./statusBar";
 import { FleetProvider } from "./views/fleetProvider";
@@ -28,6 +29,13 @@ export function activate(context: vscode.ExtensionContext): void {
   // provider (both no-op gracefully on editors that lack the API).
   registerChatParticipant(context, () => client);
   registerMcpProvider(context);
+
+  // Inbox notifications: poll the fleet and notify on new arrivals.
+  const inbox = new InboxWatcher(() => client);
+  context.subscriptions.push(inbox);
+  const pollSeconds = () =>
+    vscode.workspace.getConfiguration("bwoc").get<number>("inbox.pollSeconds", 60);
+  inbox.start(pollSeconds());
 
   const refresh = () => {
     fleet.refresh();
@@ -61,6 +69,7 @@ export function activate(context: vscode.ExtensionContext): void {
         client = createClient(context);
         fleet.setClient(client);
         void statusBar.update(client);
+        inbox.start(pollSeconds());
       }
     }),
   );
