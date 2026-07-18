@@ -1,7 +1,11 @@
+import * as path from "node:path";
+
 import * as vscode from "vscode";
 
-import { BwocCliError, type BwocClient } from "./bwoc";
+import { activeWorkspaceRoot, BwocCliError, type BwocClient } from "./bwoc";
 import { BwocdError } from "./bwoc";
+import { ChatPanel } from "./chat/panel";
+import { buildChatSpawn, ChatSession } from "./chat/session";
 
 /** Message shown for any backend failure, unwrapped to its clean text. */
 function errText(err: unknown): string {
@@ -68,9 +72,46 @@ export function registerCommands(
     }
   };
 
+  const openChat = async (preselected?: string) => {
+    // Chat drives a local `bwoc-harness --chat` subprocess in the agent's dir,
+    // so it needs a local workspace — not a remote bwocd host.
+    const cfg = vscode.workspace.getConfiguration("bwoc");
+    if ((cfg.get<string>("remote.url", "") || "").trim()) {
+      vscode.window.showInformationMessage(
+        "BWOC: chat runs against a local workspace; it isn't wired for a remote bwoc.remote.url host yet.",
+      );
+      return;
+    }
+    const client = getClient();
+    const to = preselected ?? (await pickAgent(client, "Open a chat with which agent?"));
+    if (!to) {
+      return;
+    }
+    let detail;
+    try {
+      detail = await client.status(to);
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+      return;
+    }
+    const wsRoot = activeWorkspaceRoot();
+    if (!wsRoot) {
+      vscode.window.showErrorMessage("BWOC: no workspace root — open a folder containing .bwoc/.");
+      return;
+    }
+    const spawnSpec = buildChatSpawn({
+      bwocBinaryPath: cfg.get<string>("binaryPath", "bwoc") || "bwoc",
+      agentDir: path.join(wsRoot, detail.path),
+      backend: detail.backend,
+      model: detail.primaryModel || "auto",
+    });
+    new ChatPanel(to, new ChatSession(spawnSpec)).reveal();
+  };
+
   const commandPalette = async () => {
     const pick = await vscode.window.showQuickPick(
       [
+        { label: "$(comment-discussion) Chat with an agent", cmd: "bwoc.openChat" },
         { label: "$(comment) Send message to an agent", cmd: "bwoc.sendMessage" },
         { label: "$(refresh) Refresh fleet", cmd: "bwoc.refreshFleet" },
       ],
@@ -83,6 +124,7 @@ export function registerCommands(
 
   context.subscriptions.push(
     vscode.commands.registerCommand("bwoc.sendMessage", sendMessage),
+    vscode.commands.registerCommand("bwoc.openChat", openChat),
     vscode.commands.registerCommand("bwoc.commandPalette", commandPalette),
   );
 }

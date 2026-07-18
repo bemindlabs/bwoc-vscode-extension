@@ -8,6 +8,12 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+- **P3 — streaming chat webview.** `BWOC: Chat with Agent` opens a webview that
+  drives a local `bwoc-harness --chat` subprocess over the `chat_proto` NDJSON
+  protocol: token streaming, tool calls/results, inline permission prompts
+  (Allow/Deny), and mode/turn markers. CSP-locked (nonce) and theme-aware. The
+  extension host line-buffers stdout so events split across chunks never drop.
+
 - **P2 (part 2) — command palette.** `BWOC: Send Message to Agent` (QuickPick the
   agent → InputBox the message → `bwoc send`) and a `BWOC: Commands…` action hub,
   with results in a shared **BWOC** output channel. Extends `BwocClient` with

@@ -12,6 +12,14 @@ export * from "./types";
 export { BwocCliError } from "./cli";
 export { BwocdError } from "./bwocd";
 
+/** The active workspace root using the same resolution as the CLI backend:
+ *  `bwoc.workspace` setting → first folder with `.bwoc/` → first folder → "".
+ *  Exposed for callers (e.g. the chat command) that need the agent directory. */
+export function activeWorkspaceRoot(): string {
+  const cfg = vscode.workspace.getConfiguration("bwoc");
+  return resolveWorkspace(cfg.get<string>("workspace", ""));
+}
+
 /** Resolve the workspace root: explicit setting → first folder containing
  *  `.bwoc/` → first workspace folder → "" (let bwoc resolve from cwd/env). */
 function resolveWorkspace(configured: string): string {
