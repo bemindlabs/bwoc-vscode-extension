@@ -58,6 +58,12 @@ export interface Task {
   state: "done" | "claimed" | "open";
 }
 
+/** One workspace-level memory entry from `bwoc memory list --json`. */
+export interface MemoryEntry {
+  name: string;
+  sizeBytes: number;
+}
+
 export interface BwocClient {
   list(): Promise<AgentSummary[]>;
   status(agentId: string): Promise<AgentDetail>;
@@ -65,6 +71,10 @@ export interface BwocClient {
   teams(): Promise<Team[]>;
   /** A team's shared task list. */
   tasks(team: string): Promise<Task[]>;
+  /** Workspace-level memory entries (`.bwoc/memory/`). */
+  memories(): Promise<MemoryEntry[]>;
+  /** The contents of one memory entry. */
+  memoryContent(name: string): Promise<string>;
   /** Append a message to an agent's inbox (as the human operator). Returns the
    *  backend's confirmation line. */
   send(to: string, message: string): Promise<string>;

@@ -5,6 +5,7 @@ import type {
   AgentDetail,
   AgentSummary,
   BwocClient,
+  MemoryEntry,
   RunResult,
   Task,
   Team,
@@ -105,6 +106,16 @@ export function parseTasks(stdout: string): Task[] {
   }));
 }
 
+export function parseMemories(stdout: string): MemoryEntry[] {
+  const doc = JSON.parse(stdout) as {
+    entries?: Array<{ name: string; size_bytes?: number }>;
+  };
+  return (doc.entries ?? []).map((e) => ({
+    name: e.name,
+    sizeBytes: e.size_bytes ?? 0,
+  }));
+}
+
 export function parseRunResult(stdout: string): RunResult {
   const doc = JSON.parse(stdout) as {
     agent?: string;
@@ -184,5 +195,14 @@ export class CliBackend implements BwocClient {
 
   async tasks(team: string): Promise<Task[]> {
     return parseTasks(await this.exec(["task", "list", team, "--json"]));
+  }
+
+  async memories(): Promise<MemoryEntry[]> {
+    return parseMemories(await this.exec(["memory", "list", "--json"]));
+  }
+
+  async memoryContent(name: string): Promise<string> {
+    // `bwoc memory show <name>` prints the entry's raw contents to stdout.
+    return this.exec(["memory", "show", name]);
   }
 }

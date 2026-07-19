@@ -194,4 +194,12 @@ export class BwocdBackend implements BwocClient {
   async tasks(_team: string): Promise<import("./types").Task[]> {
     throw new BwocdError("tasks are not available over a remote bwocd host yet.");
   }
+
+  async memories(): Promise<import("./types").MemoryEntry[]> {
+    throw new BwocdError("workspace memory is not available over a remote bwocd host yet.");
+  }
+
+  async memoryContent(_name: string): Promise<string> {
+    throw new BwocdError("workspace memory is not available over a remote bwocd host yet.");
+  }
 }
