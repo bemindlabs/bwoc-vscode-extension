@@ -32,3 +32,29 @@ describe("parseTasks", () => {
     expect(tasks[2]).toMatchObject({ id: "t3", claimedBy: null, state: "open" });
   });
 });
+
+describe("parseMemories", () => {
+  it("maps the memory-list entries array", async () => {
+    const { parseMemories } = await import("../src/bwoc/cli");
+    const out = JSON.stringify({
+      workspace_memory_dir: "/ws/.bwoc/memory",
+      count: 2,
+      total_bytes: 300,
+      entries: [
+        { name: "readme-style.md", size_bytes: 100 },
+        { name: "bwoc-party.md", size_bytes: 200 },
+      ],
+    });
+    expect(parseMemories(out)).toEqual([
+      { name: "readme-style.md", sizeBytes: 100 },
+      { name: "bwoc-party.md", sizeBytes: 200 },
+    ]);
+  });
+  it("tolerates empty/missing entries", async () => {
+    const { parseMemories } = await import("../src/bwoc/cli");
+    expect(parseMemories(JSON.stringify({ count: 0, entries: [] }))).toEqual([]);
+    expect(parseMemories(JSON.stringify({ entries: [{ name: "x" }] }))).toEqual([
+      { name: "x", sizeBytes: 0 },
+    ]);
+  });
+});

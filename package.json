@@ -43,6 +43,11 @@
           "id": "bwocTeams",
           "name": "Teams & Tasks",
           "icon": "media/bwoc.svg"
+        },
+        {
+          "id": "bwocMemory",
+          "name": "Memory",
+          "icon": "media/bwoc.svg"
         }
       ]
     },
@@ -56,6 +61,15 @@
         "command": "bwoc.refreshTeams",
         "title": "BWOC: Refresh Teams",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "bwoc.refreshMemory",
+        "title": "BWOC: Refresh Memory",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "bwoc.openMemory",
+        "title": "BWOC: Open Memory Entry"
       },
       {
         "command": "bwoc.openAgentDetail",
@@ -101,6 +115,11 @@
         {
           "command": "bwoc.refreshTeams",
           "when": "view == bwocTeams",
+          "group": "navigation"
+        },
+        {
+          "command": "bwoc.refreshMemory",
+          "when": "view == bwocMemory",
           "group": "navigation"
         }
       ],
