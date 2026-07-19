@@ -3,11 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BwocdBackend, BwocdError } from "../src/bwoc/bwocd";
 import { Signer } from "../src/bwoc/signer";
 
-const dummySigner = new Signer(
-  { get: async () => undefined, store: async () => {} },
-  { get: () => undefined, update: async () => {} },
-);
-
 /** A signer backed by real in-memory maps so buildSignedHeaders can actually
  *  generate + persist a key (the dummy above throws once signing is reached). */
 function memorySigner(): Signer {
@@ -35,9 +30,16 @@ afterEach(() => {
 });
 
 describe("BwocdBackend.send", () => {
-  it("rejects with a clear message — remote send is not wired yet", async () => {
-    const b = new BwocdBackend("http://127.0.0.1:9", dummySigner);
-    await expect(b.send("agent-x", "hi")).rejects.toThrow(/not supported yet/i);
+  it("returns the confirmation from the /cli proxy stdout", async () => {
+    stubFetch({ ok: true, exit_code: 0, stdout: "Sent to agent-x.\n", stderr: "", tier: "write" });
+    const b = new BwocdBackend("http://127.0.0.1:9", memorySigner());
+    expect(await b.send("agent-x", "hi")).toBe("Sent to agent-x.");
+  });
+
+  it("throws BwocdError with stderr on a non-zero /cli exit", async () => {
+    stubFetch({ ok: false, exit_code: 2, stdout: "", stderr: "no such agent", tier: "write" });
+    const b = new BwocdBackend("http://127.0.0.1:9", memorySigner());
+    await expect(b.send("ghost", "hi")).rejects.toThrow(/no such agent/);
   });
 });
 

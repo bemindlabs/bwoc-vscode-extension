@@ -179,6 +179,49 @@ describe("BwocdBackend signed HTTP round-trip", () => {
     expect(result).toMatchObject({ agent: "agent-anna", exitCode: 0, durationMs: 4200, output: "task done" });
   });
 
+  it("drives teams() through the signed POST /cli proxy and parses stdout", async () => {
+    const { secrets, config } = stores();
+    const signer = new Signer(secrets, config);
+    const { publicKeyHex } = await signer.ensureIdentity();
+    const srv = await startServer(publicKeyHex, {
+      "/cli": {
+        ok: true,
+        exit_code: 0,
+        tier: "read",
+        stdout: JSON.stringify([
+          { team: "tianting", members: ["agent-yudi"], created_at: "x" },
+        ]),
+        stderr: "",
+      },
+    });
+    closer = srv.close;
+
+    const teams = await new BwocdBackend(srv.base, signer).teams();
+    expect(teams).toEqual([{ name: "tianting", members: ["agent-yudi"], createdAt: "x" }]);
+  });
+
+  it("returns send() confirmation from /cli stdout", async () => {
+    const { secrets, config } = stores();
+    const signer = new Signer(secrets, config);
+    const { publicKeyHex } = await signer.ensureIdentity();
+    const srv = await startServer(publicKeyHex, {
+      "/cli": { ok: true, exit_code: 0, tier: "write", stdout: "Sent to agent-anna.\n", stderr: "" },
+    });
+    closer = srv.close;
+    expect(await new BwocdBackend(srv.base, signer).send("agent-anna", "hi")).toBe("Sent to agent-anna.");
+  });
+
+  it("throws with stderr when a /cli verb exits non-zero", async () => {
+    const { secrets, config } = stores();
+    const signer = new Signer(secrets, config);
+    const { publicKeyHex } = await signer.ensureIdentity();
+    const srv = await startServer(publicKeyHex, {
+      "/cli": { ok: false, exit_code: 2, tier: "write", stdout: "", stderr: "no such agent" },
+    });
+    closer = srv.close;
+    await expect(new BwocdBackend(srv.base, signer).send("nope", "hi")).rejects.toThrow(/no such agent/);
+  });
+
   it("surfaces a rejected signature (401) as BwocdError", async () => {
     const { secrets, config } = stores();
     const signer = new Signer(secrets, config);
