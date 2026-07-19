@@ -50,7 +50,12 @@ export class BwocdBackend implements BwocClient {
 
   /** Signed request. `path` may carry a query string; it is canonicalized for
    *  signing. `body`, when present, is JSON-encoded and its hash is signed. */
-  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    timeoutMs: number = REQUEST_TIMEOUT_MS,
+  ): Promise<T> {
     const [pathname, query] = path.split("?", 2);
     const canonical = canonicalPath(pathname, query ?? null);
     const bodyBytes =
@@ -66,14 +71,15 @@ export class BwocdBackend implements BwocClient {
         method,
         headers,
         body: body === undefined ? undefined : bodyBytes,
-        // Guard against a hung daemon — the CLI backend bounds itself the same way.
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        // Guard against a hung daemon — the CLI backend bounds itself the same
+        // way. Long-running verbs (a remote `run`) pass a generous override.
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (e) {
       const err = e as Error;
       if (err.name === "TimeoutError" || err.name === "AbortError") {
         throw new BwocdError(
-          `bwocd at ${this.base} did not respond within ${REQUEST_TIMEOUT_MS / 1000}s — is the daemon reachable over the tailnet?`,
+          `bwocd at ${this.base} did not respond within ${timeoutMs / 1000}s — is the daemon reachable over the tailnet?`,
         );
       }
       throw new BwocdError(`bwocd unreachable at ${this.base}: ${err.message}`);
@@ -178,12 +184,23 @@ export class BwocdBackend implements BwocClient {
     );
   }
 
-  async run(_agentId: string, _task: string): Promise<import("./types").RunResult> {
-    // Headless task execution over a remote host is a capability-gated mutation
-    // (the /cli proxy slice); not wired yet.
-    throw new BwocdError(
-      "running a task over a remote bwocd host is not supported yet — run against a local workspace.",
-    );
+  async run(agentId: string, task: string): Promise<import("./types").RunResult> {
+    // bwocd's `POST /agents/:id/chat` runs `bwoc run <id> --task <prompt> --json`
+    // on the host and returns the run envelope verbatim — remote headless task
+    // execution. (send / teams / tasks / memory over remote still await bwocd's
+    // generic /cli gated proxy — see the extension issue.)
+    const raw = await this.request<{
+      agent?: string;
+      exit_code?: number;
+      duration_ms?: number;
+      output?: string;
+    }>("POST", `/agents/${encodeURIComponent(agentId)}/chat`, { prompt: task }, 15 * 60 * 1000);
+    return {
+      agent: raw.agent ?? agentId,
+      exitCode: raw.exit_code ?? 0,
+      durationMs: raw.duration_ms ?? 0,
+      output: raw.output ?? "",
+    };
   }
 
   async teams(): Promise<import("./types").Team[]> {

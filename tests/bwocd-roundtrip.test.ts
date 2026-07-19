@@ -160,6 +160,25 @@ describe("BwocdBackend signed HTTP round-trip", () => {
     });
   });
 
+  it("runs a task via the signed POST /agents/:id/chat and maps the run envelope", async () => {
+    const { secrets, config } = stores();
+    const signer = new Signer(secrets, config);
+    const { publicKeyHex } = await signer.ensureIdentity();
+    const srv = await startServer(publicKeyHex, {
+      "/agents/agent-anna/chat": {
+        agent: "agent-anna",
+        backend: "claude",
+        exit_code: 0,
+        duration_ms: 4200,
+        output: "task done",
+      },
+    });
+    closer = srv.close;
+
+    const result = await new BwocdBackend(srv.base, signer).run("agent-anna", "do the thing");
+    expect(result).toMatchObject({ agent: "agent-anna", exitCode: 0, durationMs: 4200, output: "task done" });
+  });
+
   it("surfaces a rejected signature (401) as BwocdError", async () => {
     const { secrets, config } = stores();
     const signer = new Signer(secrets, config);
