@@ -6,6 +6,17 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-07-19
+
+### Added
+
+- **Memory board view** — a third activity-bar tree listing workspace memory entries (`.bwoc/memory/`) with size; clicking one opens its contents in a markdown document. Completes the P5 "memory boards" scope.
+- **Remote status / who-am-I** — `BWOC: Remote Status / Who Am I` calls bwocd `/whoami` to show the controller's approved id + capabilities, and now distinguishes "not enrolled" (401/403, actionable) from "host unreachable" instead of collapsing both into one generic error.
+
+### Changed
+
+- **Test/CI hardening** — a bwocd signed-HTTP **round-trip test** (a real `http.Server` Ed25519-verifies the request exactly as bwocd's Rust verifier would, then the backend maps the response — this would have caught the B1 status mis-parse), plus an **ESLint gate** and report-only **v8 coverage** wired into CI.
+
 ## [0.2.0] — 2026-07-19
 
 ### Added
