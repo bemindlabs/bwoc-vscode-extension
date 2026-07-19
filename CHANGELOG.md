@@ -6,6 +6,17 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-07-19
+
+### Added
+
+The four feature gaps from the post-P5 investigation:
+
+- **Run a task on an agent** — `BWOC: Run Task on Agent` (pick agent → task → progress → output) runs `bwoc run --task … <agent>` headless and captures the result. `send` only appended to an inbox; this actually runs and returns output.
+- **Fleet tree context menu** — right-clicking an agent now offers **Chat / Run / Send / Show Detail** (the tree's `contextValue` was previously dead, so every action was palette-only).
+- **Chat webview: team & context events + controls** — the chat panel now renders `team_message` and `compacted` (previously silently dropped), and adds a **mode selector** (default / accept_edits / plan / bypass) and a **Forget context** button (the `set_mode` / `forget` inputs were receive-only before).
+- **Teams & Tasks view** — a second activity-bar tree of Saṅgha teams → their shared task lists, each task showing **done / claimed / open** state and its claimant. Completes the P5 "teams / tasks" scope that had shipped inbox-only.
+
 ## [0.1.1] — 2026-07-19
 
 ### Fixed
