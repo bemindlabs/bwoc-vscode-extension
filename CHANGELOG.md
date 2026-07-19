@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-07-19
+
+### Added
+
+- **Remote fleets are no longer read-only.** `send`, `teams`, `tasks`, and `memory` now work over a remote `bwocd` host via its capability-gated `POST /cli` proxy (the extension posts the verb argv; bwocd runs it capability-gated and the same parsers map the returned stdout). Combined with remote `run` (v0.3.x, via `POST /agents/:id/chat`), **every fleet action now works over the tailnet**, not just locally. A missing capability or unenrolled controller surfaces the enroll guidance. Requires a `bwocd` build that includes `/cli` (bemindlabs/bwoc-control-center#33).
+
 ## [0.3.0] — 2026-07-19
 
 ### Added
