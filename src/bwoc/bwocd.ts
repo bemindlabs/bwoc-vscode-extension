@@ -152,6 +152,24 @@ export class BwocdBackend implements BwocClient {
     return { controllerId, publicKeyHex };
   }
 
+  /**
+   * `GET /whoami` — the caller's approved identity + capabilities on this host.
+   * A 401/403 here means the controller isn't enrolled/approved yet (distinct
+   * from an unreachable host, which throws a network `BwocdError`).
+   */
+  async whoami(): Promise<import("./types").WhoAmI> {
+    const raw = await this.get<{
+      controller_id?: string;
+      caps?: string[];
+      bwocd_version?: string;
+    }>("/whoami");
+    return {
+      controllerId: raw.controller_id ?? "",
+      caps: (raw.caps ?? []) as import("./types").Capability[],
+      bwocdVersion: raw.bwocd_version ?? "",
+    };
+  }
+
   async send(_to: string, _message: string): Promise<string> {
     // The bwocd inbox-write route is capability-gated and lands with the P2
     // mutation slice; until then remote send is not wired.

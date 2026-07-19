@@ -143,6 +143,23 @@ describe("BwocdBackend signed HTTP round-trip", () => {
     expect(d.resources.memories).toBe(3);
   });
 
+  it("maps /whoami → { controllerId, caps, bwocdVersion }", async () => {
+    const { secrets, config } = stores();
+    const signer = new Signer(secrets, config);
+    const { publicKeyHex } = await signer.ensureIdentity();
+    const srv = await startServer(publicKeyHex, {
+      "/whoami": { controller_id: "vscode-abc123", caps: ["read", "write"], bwocd_version: "0.3.0" },
+    });
+    closer = srv.close;
+
+    const me = await new BwocdBackend(srv.base, signer).whoami();
+    expect(me).toEqual({
+      controllerId: "vscode-abc123",
+      caps: ["read", "write"],
+      bwocdVersion: "0.3.0",
+    });
+  });
+
   it("surfaces a rejected signature (401) as BwocdError", async () => {
     const { secrets, config } = stores();
     const signer = new Signer(secrets, config);

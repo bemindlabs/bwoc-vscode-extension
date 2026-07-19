@@ -193,6 +193,29 @@ export function registerCommands(
     }
   };
 
+  const remoteStatus = async () => {
+    const client = getClient();
+    if (!(client instanceof BwocdBackend)) {
+      vscode.window.showInformationMessage(
+        "BWOC: running against the local CLI — there is no remote host to check. Set bwoc.remote.url for a bwocd host.",
+      );
+      return;
+    }
+    try {
+      const me = await client.whoami();
+      output.appendLine(
+        `[whoami] enrolled as ${me.controllerId} · caps [${me.caps.join(", ") || "none"}] · bwocd ${me.bwocdVersion}`,
+      );
+      vscode.window.showInformationMessage(
+        `BWOC: connected as ${me.controllerId} — caps: ${me.caps.join(", ") || "none"}.`,
+      );
+    } catch (err) {
+      // A BwocdError here is either "not enrolled" (401/403, with an actionable
+      // message) or "host unreachable" — both already phrased by the backend.
+      vscode.window.showWarningMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
   const commandPalette = async () => {
     const pick = await vscode.window.showQuickPick(
       [
@@ -201,6 +224,7 @@ export function registerCommands(
         { label: "$(comment) Send message to an agent", cmd: "bwoc.sendMessage" },
         { label: "$(refresh) Refresh fleet", cmd: "bwoc.refreshFleet" },
         { label: "$(key) Enroll this controller (remote bwocd)", cmd: "bwoc.enrollController" },
+        { label: "$(account) Remote status / who am I (bwocd)", cmd: "bwoc.remoteStatus" },
       ],
       { placeHolder: "BWOC — pick an action" },
     );
@@ -214,6 +238,7 @@ export function registerCommands(
     vscode.commands.registerCommand("bwoc.openChat", openChat),
     vscode.commands.registerCommand("bwoc.runTask", runTask),
     vscode.commands.registerCommand("bwoc.enrollController", enrollController),
+    vscode.commands.registerCommand("bwoc.remoteStatus", remoteStatus),
     vscode.commands.registerCommand("bwoc.commandPalette", commandPalette),
   );
 }
