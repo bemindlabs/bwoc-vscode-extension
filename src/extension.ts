@@ -8,6 +8,7 @@ import { registerMcpProvider } from "./mcp";
 import { FleetStatusBar } from "./statusBar";
 import { FleetProvider } from "./views/fleetProvider";
 import { MemoryProvider } from "./views/memoryProvider";
+import { ProfilesProvider } from "./views/profilesProvider";
 import { TeamsProvider } from "./views/teamsProvider";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -16,6 +17,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const fleet = new FleetProvider(client);
   const teams = new TeamsProvider(client);
   const memory = new MemoryProvider(client);
+  const profiles = new ProfilesProvider(client);
   const statusBar = new FleetStatusBar();
   const output = vscode.window.createOutputChannel("BWOC");
 
@@ -23,6 +25,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.window.registerTreeDataProvider("bwocFleet", fleet),
     vscode.window.registerTreeDataProvider("bwocTeams", teams),
     vscode.window.registerTreeDataProvider("bwocMemory", memory),
+    vscode.window.registerTreeDataProvider("bwocProfiles", profiles),
     statusBar,
     output,
   );
@@ -52,6 +55,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("bwoc.refreshFleet", refresh),
     vscode.commands.registerCommand("bwoc.refreshTeams", () => teams.refresh()),
     vscode.commands.registerCommand("bwoc.refreshMemory", () => memory.refresh()),
+    vscode.commands.registerCommand("bwoc.refreshProfiles", () => profiles.refresh()),
     vscode.commands.registerCommand("bwoc.openMemory", async (name?: string) => {
       if (!name) {
         return;
@@ -100,6 +104,7 @@ export function activate(context: vscode.ExtensionContext): void {
         fleet.setClient(client);
         teams.setClient(client);
         memory.setClient(client);
+        profiles.setClient(client);
         void statusBar.update(client);
         inbox.start(pollSeconds());
       }

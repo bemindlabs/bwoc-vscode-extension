@@ -48,6 +48,11 @@
           "id": "bwocMemory",
           "name": "Memory",
           "icon": "media/bwoc.svg"
+        },
+        {
+          "id": "bwocProfiles",
+          "name": "Agent Profiles",
+          "icon": "media/bwoc.svg"
         }
       ]
     },
@@ -65,6 +70,11 @@
       {
         "command": "bwoc.refreshMemory",
         "title": "BWOC: Refresh Memory",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "bwoc.refreshProfiles",
+        "title": "BWOC: Refresh Agent Profiles",
         "icon": "$(refresh)"
       },
       {
@@ -120,6 +130,11 @@
         {
           "command": "bwoc.refreshMemory",
           "when": "view == bwocMemory",
+          "group": "navigation"
+        },
+        {
+          "command": "bwoc.refreshProfiles",
+          "when": "view == bwocProfiles",
           "group": "navigation"
         }
       ],
