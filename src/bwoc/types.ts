@@ -32,6 +32,15 @@ export interface RunResult {
   output: string;
 }
 
+export type Capability = "read" | "write" | "exec" | "dangerous";
+
+/** bwocd `GET /whoami` — this controller's approved identity + capabilities. */
+export interface WhoAmI {
+  controllerId: string;
+  caps: Capability[];
+  bwocdVersion: string;
+}
+
 /** A Saṅgha team from `bwoc team list --json`. */
 export interface Team {
   name: string;

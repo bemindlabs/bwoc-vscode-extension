@@ -82,6 +82,11 @@
         "icon": "$(key)"
       },
       {
+        "command": "bwoc.remoteStatus",
+        "title": "BWOC: Remote Status / Who Am I (bwocd)",
+        "icon": "$(account)"
+      },
+      {
         "command": "bwoc.commandPalette",
         "title": "BWOC: Commands…"
       }
