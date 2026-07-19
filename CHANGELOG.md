@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Multi-host fleet switching** — `bwoc.remote.hosts` (a list of `{ name, url }` bwocd daemons) plus a **BWOC: Switch Fleet Host** command (also a Fleet view-title button) let you target more than one fleet and switch the active one from a QuickPick; the selection persists across sessions and rebinds every view. The legacy single `bwoc.remote.url` folds in as an unnamed host, so existing settings resolve unchanged, and **Local CLI** is always a switch target. The status bar now names the active fleet in its tooltip. Completes the multi-host half of #13 (the `/whoami` enrolled/caps half shipped in 0.3.0).
+
 ## [0.5.0] — 2026-07-20
 
 ### Added

@@ -50,7 +50,10 @@ without touching the views.
 | --- | --- | --- |
 | `bwoc.binaryPath` | `bwoc` | Path to the `bwoc` CLI binary |
 | `bwoc.workspace` | *(auto)* | Workspace root; empty = first folder with `.bwoc/` |
-| `bwoc.remote.url` | *(empty)* | Reserved for P2 — `bwocd` URL for remote fleets |
+| `bwoc.remote.url` | *(empty)* | Single `bwocd` URL for a remote / tailnet fleet; empty = local CLI |
+| `bwoc.remote.hosts` | `[]` | Multiple `{ name, url }` fleets to switch between (**BWOC: Switch Fleet Host**); `remote.url` folds in |
+| `bwoc.mcp.command` | `bwoc-mcp` | Command that launches the `bwoc-mcp` server for Copilot agent-mode |
+| `bwoc.inbox.pollSeconds` | `60` | Inbox-notification poll interval; `0` disables |
 
 ## Status — phased
 
