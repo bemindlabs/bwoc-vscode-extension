@@ -1,11 +1,21 @@
 // bwocd backend — drive a remote/tailnet fleet over the control daemon's
 // ed25519-signed HTTP API (the same wire contract the chrome-extension and the
 // desktop control-center use). Selected when `bwoc.remote.url` is set; otherwise
-// the CLI backend runs locally. Read-only for P2 (GET /fleet, GET /agents/:id/status).
+// the CLI backend runs locally. Reads go to dedicated routes (GET /fleet, GET
+// /agents/:id/status); `run` uses POST /agents/:id/chat; and send/teams/tasks/
+// memory flow through the capability-gated POST /cli verb proxy.
 
 import { canonicalPath } from "./canonical";
+import { parseMemories, parseTasks, parseTeams } from "./cli";
 import { Signer } from "./signer";
-import type { AgentDetail, AgentSummary, BwocClient } from "./types";
+import type {
+  AgentDetail,
+  AgentSummary,
+  BwocClient,
+  MemoryEntry,
+  Task,
+  Team,
+} from "./types";
 
 /** Surfaced to the UI as an actionable notification. */
 export class BwocdError extends Error {}
@@ -176,12 +186,29 @@ export class BwocdBackend implements BwocClient {
     };
   }
 
-  async send(_to: string, _message: string): Promise<string> {
-    // The bwocd inbox-write route is capability-gated and lands with the P2
-    // mutation slice; until then remote send is not wired.
-    throw new BwocdError(
-      "sending over a remote bwocd host is not supported yet — run against a local workspace, or use bwoc send in a terminal.",
-    );
+  /**
+   * Drive one `bwoc` verb through bwocd's capability-gated `POST /cli` proxy.
+   * bwocd runs `bwoc <argv> --workspace <host-ws>` and returns
+   * `{ ok, exit_code, stdout, stderr, tier }`; we return stdout for the caller's
+   * own parser, or throw with stderr on a non-zero exit. A 401/403 (unenrolled
+   * or missing capability) is mapped to a clear `BwocdError` by `request()`.
+   */
+  private async cli(argv: string[]): Promise<string> {
+    const res = await this.request<{
+      ok?: boolean;
+      exit_code?: number;
+      stdout?: string;
+      stderr?: string;
+    }>("POST", "/cli", { argv });
+    if (res.ok === false || (res.exit_code ?? 0) !== 0) {
+      const detail = res.stderr ? `: ${res.stderr}` : "";
+      throw new BwocdError(`bwoc ${argv.join(" ")} failed (exit ${res.exit_code ?? "?"})${detail}`);
+    }
+    return res.stdout ?? "";
+  }
+
+  async send(to: string, message: string): Promise<string> {
+    return (await this.cli(["send", to, message])).trim();
   }
 
   async run(agentId: string, task: string): Promise<import("./types").RunResult> {
@@ -203,20 +230,19 @@ export class BwocdBackend implements BwocClient {
     };
   }
 
-  async teams(): Promise<import("./types").Team[]> {
-    // bwocd exposes no team/task routes yet; teams are a local-workspace view.
-    throw new BwocdError("teams are not available over a remote bwocd host yet.");
+  async teams(): Promise<Team[]> {
+    return parseTeams(await this.cli(["team", "list", "--json"]));
   }
 
-  async tasks(_team: string): Promise<import("./types").Task[]> {
-    throw new BwocdError("tasks are not available over a remote bwocd host yet.");
+  async tasks(team: string): Promise<Task[]> {
+    return parseTasks(await this.cli(["task", "list", team, "--json"]));
   }
 
-  async memories(): Promise<import("./types").MemoryEntry[]> {
-    throw new BwocdError("workspace memory is not available over a remote bwocd host yet.");
+  async memories(): Promise<MemoryEntry[]> {
+    return parseMemories(await this.cli(["memory", "list", "--json"]));
   }
 
-  async memoryContent(_name: string): Promise<string> {
-    throw new BwocdError("workspace memory is not available over a remote bwocd host yet.");
+  async memoryContent(name: string): Promise<string> {
+    return this.cli(["memory", "show", name]);
   }
 }
