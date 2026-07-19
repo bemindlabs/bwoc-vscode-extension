@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-20
+
 ### Added
 
 - **Agent Profiles view** — a fourth activity-bar tree that opens each agent's editable profile slots: expand an agent to see its `persona/`, `mindsets/`, `skills/`, `memories/`, `interconnect/` slot dirs (only those with editable files) plus top-level `config.manifest.json` / `AGENTS.md` / `MEMORY.md`; clicking any file opens it in the editor. Files are read from the local `<workspace>/agents/<id>/` (via `bwoc list` for the agent set), backend symlinks and non-editable clutter hidden — this surfaces the *profile*, not the whole directory.
