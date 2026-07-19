@@ -111,6 +111,11 @@
         "icon": "$(account)"
       },
       {
+        "command": "bwoc.switchHost",
+        "title": "BWOC: Switch Fleet Host",
+        "icon": "$(server-environment)"
+      },
+      {
         "command": "bwoc.commandPalette",
         "title": "BWOC: Commands…"
       }
@@ -118,9 +123,14 @@
     "menus": {
       "view/title": [
         {
+          "command": "bwoc.switchHost",
+          "when": "view == bwocFleet",
+          "group": "navigation@1"
+        },
+        {
           "command": "bwoc.refreshFleet",
           "when": "view == bwocFleet",
-          "group": "navigation"
+          "group": "navigation@2"
         },
         {
           "command": "bwoc.refreshTeams",
@@ -177,7 +187,26 @@
         "bwoc.remote.url": {
           "type": "string",
           "default": "",
-          "description": "bwocd control-daemon URL for remote / tailnet fleets. Empty = use the local bwoc CLI."
+          "description": "bwocd control-daemon URL for a single remote / tailnet fleet. Empty = use the local bwoc CLI. For multiple fleets use `bwoc.remote.hosts` (this value folds in as an unnamed host)."
+        },
+        "bwoc.remote.hosts": {
+          "type": "array",
+          "default": [],
+          "description": "Multiple bwocd fleet hosts to switch between (BWOC: Switch Fleet Host). The active host persists across sessions; the legacy `bwoc.remote.url` folds in as an extra host.",
+          "items": {
+            "type": "object",
+            "required": ["url"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Display name for this fleet (defaults to the URL)."
+              },
+              "url": {
+                "type": "string",
+                "description": "bwocd control-daemon URL, e.g. http://host.tailnet.ts.net:10130"
+              }
+            }
+          }
         },
         "bwoc.mcp.command": {
           "type": "string",

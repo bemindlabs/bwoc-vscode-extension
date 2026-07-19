@@ -5,12 +5,20 @@ import * as vscode from "vscode";
 
 import { BwocdBackend } from "./bwocd";
 import { CliBackend } from "./cli";
+import {
+  ACTIVE_HOST_KEY,
+  type FoldedHost,
+  foldHosts,
+  type RemoteHost,
+  resolveActiveUrl,
+} from "./hosts";
 import { Signer } from "./signer";
 import type { BwocClient } from "./types";
 
 export * from "./types";
 export { BwocCliError } from "./cli";
 export { BwocdBackend, BwocdError } from "./bwocd";
+export { ACTIVE_HOST_KEY, LOCAL_SENTINEL, type FoldedHost } from "./hosts";
 
 /** The active workspace root using the same resolution as the CLI backend:
  *  `bwoc.workspace` setting → first folder with `.bwoc/` → first folder → "".
@@ -36,13 +44,26 @@ function resolveWorkspace(configured: string): string {
   return folders[0]?.uri.fsPath ?? "";
 }
 
-/** Build the active client from settings: a signed-HTTP bwocd backend when
- *  `bwoc.remote.url` is set (remote / tailnet fleets), otherwise the local CLI.
- *  `context` supplies SecretStorage (the controller private key) and globalState
- *  (the controller id + public key) for the bwocd signer. */
+/** The folded, deduped list of remote fleet hosts (configured `remote.hosts` +
+ *  the legacy single `remote.url`). Empty means CLI-only. */
+export function remoteHosts(): FoldedHost[] {
+  const cfg = vscode.workspace.getConfiguration("bwoc");
+  return foldHosts(cfg.get<RemoteHost[]>("remote.hosts", []), cfg.get<string>("remote.url", ""));
+}
+
+/** The active remote url ("" = local CLI), from the folded host list + the
+ *  operator's persisted selection (globalState). */
+export function activeRemoteUrl(context: vscode.ExtensionContext): string {
+  return resolveActiveUrl(remoteHosts(), context.globalState.get<string>(ACTIVE_HOST_KEY, ""));
+}
+
+/** Build the active client: a signed-HTTP bwocd backend when a remote host is
+ *  active (from `remote.hosts`/`remote.url` + the selected host), otherwise the
+ *  local CLI. `context` supplies SecretStorage (the controller private key) and
+ *  globalState (the controller id + public key, and the active-host selection). */
 export function createClient(context: vscode.ExtensionContext): BwocClient {
   const cfg = vscode.workspace.getConfiguration("bwoc");
-  const remote = (cfg.get<string>("remote.url", "") || "").trim();
+  const remote = activeRemoteUrl(context);
   if (remote) {
     const signer = new Signer(context.secrets, {
       get: (k) => context.globalState.get<string>(k),

@@ -1,6 +1,13 @@
 import * as vscode from "vscode";
 
-import { BwocCliError, createClient } from "./bwoc";
+import {
+  activeRemoteUrl,
+  BwocCliError,
+  createClient,
+  ACTIVE_HOST_KEY,
+  LOCAL_SENTINEL,
+  remoteHosts,
+} from "./bwoc";
 import { registerChatParticipant } from "./chat/participant";
 import { registerCommands } from "./commands";
 import { InboxWatcher } from "./inbox";
@@ -51,6 +58,28 @@ export function activate(context: vscode.ExtensionContext): void {
     void statusBar.update(client);
   };
 
+  // Display label for the currently-active fleet host (for the status bar).
+  const hostLabel = (): string => {
+    const url = activeRemoteUrl(context);
+    if (url === "") {
+      return "Local CLI";
+    }
+    return remoteHosts().find((h) => h.url === url)?.name ?? url;
+  };
+
+  // Rebuild the live client and rebind every view to it — used both when
+  // settings change and when the operator switches the active fleet host.
+  const rebuild = () => {
+    client = createClient(context);
+    fleet.setClient(client);
+    teams.setClient(client);
+    memory.setClient(client);
+    profiles.setClient(client);
+    statusBar.setHost(hostLabel());
+    void statusBar.update(client);
+    inbox.start(pollSeconds());
+  };
+
   context.subscriptions.push(
     vscode.commands.registerCommand("bwoc.refreshFleet", refresh),
     vscode.commands.registerCommand("bwoc.refreshTeams", () => teams.refresh()),
@@ -97,20 +126,51 @@ export function activate(context: vscode.ExtensionContext): void {
         }
       },
     ),
+    // Switch the active fleet host (multi-host): pick from `remote.hosts` +
+    // the legacy `remote.url`, or the local CLI. The selection persists in
+    // globalState and rebinds every view to the chosen backend.
+    vscode.commands.registerCommand("bwoc.switchHost", async () => {
+      const hosts = remoteHosts();
+      const active = activeRemoteUrl(context);
+      type HostPick = vscode.QuickPickItem & { url: string };
+      const items: HostPick[] = [
+        {
+          label: "$(vm) Local CLI",
+          description: active === "" ? "● active" : "",
+          url: LOCAL_SENTINEL,
+        },
+        ...hosts.map((h) => ({
+          label: `$(server) ${h.name}`,
+          description: (h.url === active ? "● active · " : "") + h.url,
+          url: h.url,
+        })),
+      ];
+      if (hosts.length === 0) {
+        vscode.window.showInformationMessage(
+          "BWOC: no remote hosts configured. Add them under `bwoc.remote.hosts` (or `bwoc.remote.url`).",
+        );
+        return;
+      }
+      const pick = await vscode.window.showQuickPick(items, {
+        placeHolder: "Select the active BWOC fleet host",
+      });
+      if (!pick) {
+        return;
+      }
+      await context.globalState.update(ACTIVE_HOST_KEY, pick.url);
+      rebuild();
+      const name = pick.url === LOCAL_SENTINEL ? "Local CLI" : (pick.label.replace(/^\$\([^)]*\)\s*/, ""));
+      vscode.window.showInformationMessage(`BWOC: switched to ${name}`);
+    }),
     // Rebuild the client when relevant settings change.
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("bwoc")) {
-        client = createClient(context);
-        fleet.setClient(client);
-        teams.setClient(client);
-        memory.setClient(client);
-        profiles.setClient(client);
-        void statusBar.update(client);
-        inbox.start(pollSeconds());
+        rebuild();
       }
     }),
   );
 
+  statusBar.setHost(hostLabel());
   void statusBar.update(client);
 }
 
