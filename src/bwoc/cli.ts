@@ -5,6 +5,7 @@ import type {
   AgentDetail,
   AgentSummary,
   BwocClient,
+  CheckReport,
   DoctorReport,
   InboxMessage,
   MemoryEntry,
@@ -150,6 +151,11 @@ export function parseDoctor(stdout: string): DoctorReport {
   };
 }
 
+export function parseCheck(stdout: string): CheckReport {
+  const doc = JSON.parse(stdout) as { passes?: string[]; violations?: string[] };
+  return { passes: doc.passes ?? [], violations: doc.violations ?? [] };
+}
+
 export function parseRunResult(stdout: string): RunResult {
   const doc = JSON.parse(stdout) as {
     agent?: string;
@@ -276,5 +282,49 @@ export class CliBackend implements BwocClient {
 
   async doctor(): Promise<DoctorReport> {
     return parseDoctor(await this.exec(["doctor", "--json"]));
+  }
+
+  /** Like `exec`, but returns stdout even on a non-zero exit (only a spawn
+   *  failure throws). `bwoc check` exits non-zero when there are violations, yet
+   *  still emits its JSON report on stdout. */
+  private async execTolerant(args: string[]): Promise<string> {
+    const full = this.opts.workspace ? [...args, "--workspace", this.opts.workspace] : args;
+    try {
+      const { stdout } = await execFileAsync(this.opts.binaryPath, full, {
+        maxBuffer: 16 * 1024 * 1024,
+        timeout: 15_000,
+      });
+      return stdout;
+    } catch (err) {
+      const e = err as NodeJS.ErrnoException & { stdout?: string };
+      if (e.code === "ENOENT") {
+        throw new BwocCliError(
+          `bwoc not found at "${this.opts.binaryPath}". Set "bwoc.binaryPath" in Settings.`,
+        );
+      }
+      if (typeof e.stdout === "string" && e.stdout.trim()) {
+        return e.stdout; // non-zero exit but a report was emitted
+      }
+      throw new BwocCliError(`bwoc ${args.join(" ")} failed: ${e.message}`);
+    }
+  }
+
+  async check(agentPath: string): Promise<CheckReport> {
+    return parseCheck(await this.execTolerant(["check", agentPath, "--json"]));
+  }
+
+  async newAgent(name: string, backend: string): Promise<string> {
+    // `bwoc new <name> --backend <backend>` — the workspace resolves the default
+    // target/template. A validation failure surfaces via BwocCliError.
+    const out = await this.exec(["new", name, "--backend", backend], 60_000);
+    return out.trim().split("\n").pop() ?? `incarnated ${name}`;
+  }
+
+  async retire(name: string): Promise<string> {
+    const doc = JSON.parse(await this.exec(["retire", name, "--yes", "--json"])) as {
+      mode?: string;
+      registry_updated?: boolean;
+    };
+    return `retired (${doc.mode ?? "removed"})`;
   }
 }

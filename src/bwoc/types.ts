@@ -85,6 +85,12 @@ export interface DoctorReport {
   results: DoctorCheck[];
 }
 
+/** `bwoc check <path> --json` — backend-neutrality audit of one agent. */
+export interface CheckReport {
+  passes: string[];
+  violations: string[];
+}
+
 export interface BwocClient {
   list(): Promise<AgentSummary[]>;
   status(agentId: string): Promise<AgentDetail>;
@@ -115,4 +121,11 @@ export interface BwocClient {
   taskComplete(team: string, taskId: string): Promise<void>;
   /** Diagnose the environment + workspace (`bwoc doctor`). */
   doctor(): Promise<DoctorReport>;
+  /** Backend-neutrality audit of one agent (`bwoc check <path>`). */
+  check(agentPath: string): Promise<CheckReport>;
+  /** Incarnate a new agent (`bwoc new <name> --backend <backend>`). Returns a
+   *  one-line outcome. */
+  newAgent(name: string, backend: string): Promise<string>;
+  /** Retire an agent — remove from the registry + files (`bwoc retire`). */
+  retire(name: string): Promise<string>;
 }

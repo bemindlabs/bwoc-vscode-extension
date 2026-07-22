@@ -299,4 +299,16 @@ export class BwocdBackend implements BwocClient {
   async doctor(): Promise<DoctorReport> {
     this.localOnly("Doctor");
   }
+
+  async check(_agentPath: string): Promise<import("./types").CheckReport> {
+    this.localOnly("Check agent");
+  }
+
+  async newAgent(_name: string, _backend: string): Promise<string> {
+    this.localOnly("New agent");
+  }
+
+  async retire(_name: string): Promise<string> {
+    this.localOnly("Retire agent");
+  }
 }

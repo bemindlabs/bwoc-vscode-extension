@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseDoctor, parseInbox, parseList, parseStatus } from "../src/bwoc/cli";
+import { parseCheck, parseDoctor, parseInbox, parseList, parseStatus } from "../src/bwoc/cli";
 
 describe("parseList", () => {
   it("maps snake_case rows to AgentSummary", () => {
@@ -112,6 +112,17 @@ describe("parseDoctor", () => {
       status: "warn",
       detail: "not on PATH",
     });
+  });
+});
+
+describe("parseCheck", () => {
+  it("maps passes + violations, defaulting missing arrays", () => {
+    const r = parseCheck(
+      JSON.stringify({ passes: ["AGENTS.md exists"], violations: ["hardcoded model id"] }),
+    );
+    expect(r.passes).toEqual(["AGENTS.md exists"]);
+    expect(r.violations).toEqual(["hardcoded model id"]);
+    expect(parseCheck(JSON.stringify({ passes: [] }))).toEqual({ passes: [], violations: [] });
   });
 });
 

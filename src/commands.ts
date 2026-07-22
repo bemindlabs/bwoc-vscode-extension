@@ -50,6 +50,17 @@ function agentIdFrom(arg: unknown): string | undefined {
   return typeof node?.agent?.id === "string" ? node.agent.id : undefined;
 }
 
+/** Broader than `agentIdFrom`: also resolves the Profiles-tree agent node
+ *  (`{ kind: "agent", id }`), so a command can be wired on either tree. */
+function anyAgentId(arg: unknown): string | undefined {
+  const direct = agentIdFrom(arg);
+  if (direct) {
+    return direct;
+  }
+  const node = arg as { kind?: string; id?: string } | undefined;
+  return node?.kind === "agent" && typeof node.id === "string" ? node.id : undefined;
+}
+
 /**
  * Register the command-palette actions. `getClient` returns the *current*
  * backend (it is rebuilt when settings change), so commands always run against
@@ -383,6 +394,85 @@ export function registerCommands(
     }
   };
 
+  const checkAgent = async (arg?: unknown) => {
+    const client = getClient();
+    const id = anyAgentId(arg) ?? (await pickAgent(client, "Check which agent (backend-neutrality)?"));
+    if (!id) {
+      return;
+    }
+    try {
+      // `bwoc check` takes a path; resolve the agent's dir from its status.
+      const detail = await client.status(id);
+      const report = await client.check(detail.path);
+      const body =
+        `# BWOC Check — ${id}\n\n` +
+        `${report.violations.length === 0 ? "✅ **neutral** — no violations" : `❌ **${report.violations.length} violation(s)**`}\n\n` +
+        (report.violations.length
+          ? `## Violations\n${report.violations.map((v) => `- ✗ ${v}`).join("\n")}\n\n`
+          : "") +
+        `## Passes (${report.passes.length})\n${report.passes.map((p) => `- ✓ ${p}`).join("\n")}\n`;
+      const doc = await vscode.workspace.openTextDocument({ language: "markdown", content: body });
+      await vscode.window.showTextDocument(doc, { preview: true });
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
+  const newAgent = async () => {
+    const name = await vscode.window.showInputBox({
+      prompt: "New agent name (bare, e.g. 'scout' → agent-scout)",
+      placeHolder: "scout",
+      validateInput: (v) =>
+        /^[a-z0-9][a-z0-9-]*$/.test(v.trim()) ? undefined : "lowercase letters, digits, hyphen; no leading hyphen",
+    });
+    if (name === undefined || name.trim().length === 0) {
+      return;
+    }
+    const backend = await vscode.window.showQuickPick(
+      ["claude", "ollama", "openai-compatible", "openrouter", "litellm", "copilot", "codex", "agy", "kimi"],
+      { placeHolder: "Backend for the new agent" },
+    );
+    if (!backend) {
+      return;
+    }
+    try {
+      const outcome = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `BWOC: incarnating ${name}…` },
+        () => getClient().newAgent(name.trim(), backend),
+      );
+      output.appendLine(`[new → ${name}] ${outcome}`);
+      vscode.window.showInformationMessage(`BWOC: ${outcome}`);
+      await vscode.commands.executeCommand("bwoc.refreshFleet");
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
+  const retireAgent = async (arg?: unknown) => {
+    const client = getClient();
+    const id = anyAgentId(arg) ?? (await pickAgent(client, "Retire which agent?"));
+    if (!id) {
+      return;
+    }
+    // Destructive — remove from the registry + files. Modal confirmation.
+    const confirm = await vscode.window.showWarningMessage(
+      `Retire ${id}? This removes it from the registry and deletes its files. This cannot be undone.`,
+      { modal: true },
+      "Retire",
+    );
+    if (confirm !== "Retire") {
+      return;
+    }
+    try {
+      const outcome = await client.retire(id);
+      output.appendLine(`[retire → ${id}] ${outcome}`);
+      vscode.window.showInformationMessage(`BWOC: ${id} — ${outcome}.`);
+      await vscode.commands.executeCommand("bwoc.refreshFleet");
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
   const commandPalette = async () => {
     const pick = await vscode.window.showQuickPick(
       [
@@ -393,6 +483,9 @@ export function registerCommands(
         { label: "$(debug-start) Start an agent's daemon", cmd: "bwoc.startAgent" },
         { label: "$(debug-stop) Stop an agent's daemon", cmd: "bwoc.stopAgent" },
         { label: "$(add) Add a task to a team", cmd: "bwoc.taskAdd" },
+        { label: "$(shield) Check an agent (backend-neutrality)", cmd: "bwoc.checkAgent" },
+        { label: "$(person-add) New agent (incarnate)", cmd: "bwoc.newAgent" },
+        { label: "$(trash) Retire an agent", cmd: "bwoc.retireAgent" },
         { label: "$(stethoscope) Doctor — diagnose environment", cmd: "bwoc.doctor" },
         { label: "$(refresh) Refresh fleet", cmd: "bwoc.refreshFleet" },
         { label: "$(key) Enroll this controller (remote bwocd)", cmd: "bwoc.enrollController" },
@@ -418,6 +511,9 @@ export function registerCommands(
     vscode.commands.registerCommand("bwoc.taskClaim", taskClaim),
     vscode.commands.registerCommand("bwoc.taskComplete", taskComplete),
     vscode.commands.registerCommand("bwoc.doctor", doctor),
+    vscode.commands.registerCommand("bwoc.checkAgent", checkAgent),
+    vscode.commands.registerCommand("bwoc.newAgent", newAgent),
+    vscode.commands.registerCommand("bwoc.retireAgent", retireAgent),
     vscode.commands.registerCommand("bwoc.commandPalette", commandPalette),
   );
 }
