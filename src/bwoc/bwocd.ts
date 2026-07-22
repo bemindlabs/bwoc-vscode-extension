@@ -12,6 +12,8 @@ import type {
   AgentDetail,
   AgentSummary,
   BwocClient,
+  DoctorReport,
+  InboxMessage,
   MemoryEntry,
   Task,
   Team,
@@ -244,5 +246,57 @@ export class BwocdBackend implements BwocClient {
 
   async memoryContent(name: string): Promise<string> {
     return this.cli(["memory", "show", name]);
+  }
+
+  async inbox(agentId: string): Promise<InboxMessage[]> {
+    // Dedicated read route — bwocd exposes GET /agents/:id/inbox returning
+    // `bwoc inbox <id> --json` verbatim ({ agent, inbox, messages[] }).
+    const raw = await this.get<{
+      messages?: Array<{
+        from?: string;
+        message?: string;
+        subject?: string | null;
+        type?: string | null;
+      }> | null;
+    }>(`/agents/${encodeURIComponent(agentId)}/inbox`);
+    return (raw.messages ?? []).map((m) => ({
+      from: m.from ?? "?",
+      message: m.message ?? "",
+      subject: m.subject ?? null,
+      type: m.type ?? null,
+    }));
+  }
+
+  async taskAdd(team: string, title: string): Promise<void> {
+    await this.cli(["task", "add", team, title, "--json"]);
+  }
+
+  async taskClaim(team: string, taskId: string): Promise<void> {
+    await this.cli(["task", "claim", team, taskId, "--json"]);
+  }
+
+  async taskComplete(team: string, taskId: string): Promise<void> {
+    await this.cli(["task", "complete", team, taskId, "--json"]);
+  }
+
+  // Agent-lifecycle + diagnostics are not exposed over bwocd's capability-gated
+  // /cli allowlist (start/stop mutate the daemon; doctor probes the host env), so
+  // they are local-CLI-only. Surface a clear reason instead of a bwocd refusal.
+  private localOnly(verb: string): never {
+    throw new BwocdError(
+      `${verb} is not available over a remote bwocd host — switch to the Local CLI (BWOC: Switch Fleet Host) to run it, or run it in a terminal on the host.`,
+    );
+  }
+
+  async start(_agentId: string): Promise<string> {
+    this.localOnly("Start agent");
+  }
+
+  async stop(_agentId: string): Promise<string> {
+    this.localOnly("Stop agent");
+  }
+
+  async doctor(): Promise<DoctorReport> {
+    this.localOnly("Doctor");
   }
 }

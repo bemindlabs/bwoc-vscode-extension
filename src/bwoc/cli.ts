@@ -5,6 +5,8 @@ import type {
   AgentDetail,
   AgentSummary,
   BwocClient,
+  DoctorReport,
+  InboxMessage,
   MemoryEntry,
   RunResult,
   Task,
@@ -116,6 +118,38 @@ export function parseMemories(stdout: string): MemoryEntry[] {
   }));
 }
 
+export function parseInbox(stdout: string): InboxMessage[] {
+  const doc = JSON.parse(stdout) as {
+    messages?: Array<{
+      from?: string;
+      message?: string;
+      subject?: string | null;
+      type?: string | null;
+    }>;
+  };
+  return (doc.messages ?? []).map((m) => ({
+    from: m.from ?? "?",
+    message: m.message ?? "",
+    subject: m.subject ?? null,
+    type: m.type ?? null,
+  }));
+}
+
+export function parseDoctor(stdout: string): DoctorReport {
+  const doc = JSON.parse(stdout) as {
+    exit?: number;
+    results?: Array<{ name?: string; status?: string; detail?: string | null }>;
+  };
+  return {
+    exit: doc.exit ?? 0,
+    results: (doc.results ?? []).map((r) => ({
+      name: r.name ?? "?",
+      status: r.status ?? "?",
+      detail: r.detail ?? null,
+    })),
+  };
+}
+
 export function parseRunResult(stdout: string): RunResult {
   const doc = JSON.parse(stdout) as {
     agent?: string;
@@ -204,5 +238,43 @@ export class CliBackend implements BwocClient {
   async memoryContent(name: string): Promise<string> {
     // `bwoc memory show <name>` prints the entry's raw contents to stdout.
     return this.exec(["memory", "show", name]);
+  }
+
+  async inbox(agentId: string): Promise<InboxMessage[]> {
+    return parseInbox(await this.exec(["inbox", agentId, "--json"]));
+  }
+
+  async start(agentId: string): Promise<string> {
+    // `bwoc start <agent> --yes --json` — spawns `bwoc-agent --serve` (idempotent).
+    const doc = JSON.parse(await this.exec(["start", agentId, "--yes", "--json"])) as {
+      daemon_spawned?: boolean;
+      daemon_pid?: number | null;
+    };
+    return doc.daemon_spawned
+      ? `daemon spawned (pid ${doc.daemon_pid ?? "?"})`
+      : "already running (no change)";
+  }
+
+  async stop(agentId: string): Promise<string> {
+    const doc = JSON.parse(await this.exec(["stop", agentId, "--yes", "--json"])) as {
+      daemon_outcome?: string;
+    };
+    return doc.daemon_outcome ?? "stopped";
+  }
+
+  async taskAdd(team: string, title: string): Promise<void> {
+    await this.exec(["task", "add", team, title, "--json"]);
+  }
+
+  async taskClaim(team: string, taskId: string): Promise<void> {
+    await this.exec(["task", "claim", team, taskId, "--json"]);
+  }
+
+  async taskComplete(team: string, taskId: string): Promise<void> {
+    await this.exec(["task", "complete", team, taskId, "--json"]);
+  }
+
+  async doctor(): Promise<DoctorReport> {
+    return parseDoctor(await this.exec(["doctor", "--json"]));
   }
 }

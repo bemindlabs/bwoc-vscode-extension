@@ -2,8 +2,12 @@ import * as vscode from "vscode";
 
 import { BwocCliError, BwocdError, type BwocClient, type Task, type Team } from "../bwoc";
 
-/** A node is either a team (top level) or one of its tasks (lazily fetched). */
-type TeamNode = { kind: "team"; team: Team } | { kind: "task"; task: Task };
+/** A node is either a team (top level) or one of its tasks (lazily fetched).
+ *  Task nodes carry their parent `team` so task actions (claim/complete) have
+ *  both the team and the task id. */
+export type TeamNode =
+  | { kind: "team"; team: Team }
+  | { kind: "task"; team: string; task: Task };
 
 /** Tree of Saṅgha teams → their shared task lists (`bwoc team/task list`). */
 export class TeamsProvider implements vscode.TreeDataProvider<TeamNode> {
@@ -30,6 +34,7 @@ export class TeamsProvider implements vscode.TreeDataProvider<TeamNode> {
       item.description = `${node.team.members.length} member${node.team.members.length === 1 ? "" : "s"}`;
       item.tooltip = node.team.members.join(", ");
       item.iconPath = new vscode.ThemeIcon("organization");
+      item.contextValue = "bwocTeam";
       return item;
     }
     const t = node.task;
@@ -44,6 +49,10 @@ export class TeamsProvider implements vscode.TreeDataProvider<TeamNode> {
     item.description = t.state === "claimed" && t.claimedBy ? `claimed · ${t.claimedBy}` : t.state;
     item.tooltip = t.plan;
     item.iconPath = icon;
+    // State-suffixed so the context menu shows claim on open tasks and complete
+    // on claimed ones (see package.json view/item/context `when` clauses).
+    item.contextValue =
+      t.state === "open" ? "bwocTaskOpen" : t.state === "claimed" ? "bwocTaskClaimed" : "bwocTaskDone";
     return item;
   }
 
@@ -55,6 +64,7 @@ export class TeamsProvider implements vscode.TreeDataProvider<TeamNode> {
       if (node.kind === "team") {
         return (await this.client.tasks(node.team.name)).map((task) => ({
           kind: "task" as const,
+          team: node.team.name,
           task,
         }));
       }
