@@ -116,6 +116,41 @@
         "icon": "$(server-environment)"
       },
       {
+        "command": "bwoc.startAgent",
+        "title": "BWOC: Start Agent Daemon",
+        "icon": "$(debug-start)"
+      },
+      {
+        "command": "bwoc.stopAgent",
+        "title": "BWOC: Stop Agent Daemon",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "bwoc.viewInbox",
+        "title": "BWOC: View Agent Inbox",
+        "icon": "$(mail)"
+      },
+      {
+        "command": "bwoc.taskAdd",
+        "title": "BWOC: Add Task to Team",
+        "icon": "$(add)"
+      },
+      {
+        "command": "bwoc.taskClaim",
+        "title": "BWOC: Claim Task",
+        "icon": "$(check)"
+      },
+      {
+        "command": "bwoc.taskComplete",
+        "title": "BWOC: Complete Task",
+        "icon": "$(pass)"
+      },
+      {
+        "command": "bwoc.doctor",
+        "title": "BWOC: Doctor — Diagnose Environment",
+        "icon": "$(stethoscope)"
+      },
+      {
         "command": "bwoc.commandPalette",
         "title": "BWOC: Commands…"
       }
@@ -165,9 +200,39 @@
           "group": "1_act@3"
         },
         {
-          "command": "bwoc.openAgentDetail",
+          "command": "bwoc.viewInbox",
           "when": "view == bwocFleet && viewItem == bwocAgent",
           "group": "2_info@1"
+        },
+        {
+          "command": "bwoc.openAgentDetail",
+          "when": "view == bwocFleet && viewItem == bwocAgent",
+          "group": "2_info@2"
+        },
+        {
+          "command": "bwoc.startAgent",
+          "when": "view == bwocFleet && viewItem == bwocAgent",
+          "group": "3_life@1"
+        },
+        {
+          "command": "bwoc.stopAgent",
+          "when": "view == bwocFleet && viewItem == bwocAgent",
+          "group": "3_life@2"
+        },
+        {
+          "command": "bwoc.taskAdd",
+          "when": "view == bwocTeams && viewItem == bwocTeam",
+          "group": "1_act@1"
+        },
+        {
+          "command": "bwoc.taskClaim",
+          "when": "view == bwocTeams && viewItem == bwocTaskOpen",
+          "group": "1_act@1"
+        },
+        {
+          "command": "bwoc.taskComplete",
+          "when": "view == bwocTeams && viewItem == bwocTaskClaimed",
+          "group": "1_act@1"
         }
       ]
     },

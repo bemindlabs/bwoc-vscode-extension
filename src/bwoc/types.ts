@@ -64,6 +64,27 @@ export interface MemoryEntry {
   sizeBytes: number;
 }
 
+/** One message from `bwoc inbox <agent> --json` → `messages[]`. */
+export interface InboxMessage {
+  from: string;
+  message: string;
+  subject: string | null;
+  type: string | null;
+}
+
+/** One check from `bwoc doctor --json` → `results[]`. */
+export interface DoctorCheck {
+  name: string;
+  status: string;
+  detail: string | null;
+}
+
+/** `bwoc doctor --json` — environment + workspace diagnosis. */
+export interface DoctorReport {
+  exit: number;
+  results: DoctorCheck[];
+}
+
 export interface BwocClient {
   list(): Promise<AgentSummary[]>;
   status(agentId: string): Promise<AgentDetail>;
@@ -80,4 +101,18 @@ export interface BwocClient {
   send(to: string, message: string): Promise<string>;
   /** Run a single task on an agent non-interactively and capture the result. */
   run(agentId: string, task: string): Promise<RunResult>;
+  /** Read an agent's queued inbox messages (`.bwoc/inbox.jsonl`). */
+  inbox(agentId: string): Promise<InboxMessage[]>;
+  /** Start an agent's daemon (`bwoc start`). Returns a one-line outcome. */
+  start(agentId: string): Promise<string>;
+  /** Stop an agent's daemon (`bwoc stop`). Returns a one-line outcome. */
+  stop(agentId: string): Promise<string>;
+  /** Add a task to a team's shared list. */
+  taskAdd(team: string, title: string): Promise<void>;
+  /** Claim an open task for the operator (or the configured agent). */
+  taskClaim(team: string, taskId: string): Promise<void>;
+  /** Mark a claimed task complete. */
+  taskComplete(team: string, taskId: string): Promise<void>;
+  /** Diagnose the environment + workspace (`bwoc doctor`). */
+  doctor(): Promise<DoctorReport>;
 }

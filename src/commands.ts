@@ -216,12 +216,184 @@ export function registerCommands(
     }
   };
 
+  const startAgent = async (arg?: unknown) => {
+    const client = getClient();
+    const id = agentIdFrom(arg) ?? (await pickAgent(client, "Start which agent's daemon?"));
+    if (!id) {
+      return;
+    }
+    try {
+      const outcome = await client.start(id);
+      output.appendLine(`[start → ${id}] ${outcome}`);
+      vscode.window.showInformationMessage(`BWOC: ${id} — ${outcome}.`);
+      await vscode.commands.executeCommand("bwoc.refreshFleet");
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
+  const stopAgent = async (arg?: unknown) => {
+    const client = getClient();
+    const id = agentIdFrom(arg) ?? (await pickAgent(client, "Stop which agent's daemon?"));
+    if (!id) {
+      return;
+    }
+    try {
+      const outcome = await client.stop(id);
+      output.appendLine(`[stop → ${id}] ${outcome}`);
+      vscode.window.showInformationMessage(`BWOC: ${id} — ${outcome}.`);
+      await vscode.commands.executeCommand("bwoc.refreshFleet");
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
+  const viewInbox = async (arg?: unknown) => {
+    const client = getClient();
+    const id = agentIdFrom(arg) ?? (await pickAgent(client, "View which agent's inbox?"));
+    if (!id) {
+      return;
+    }
+    try {
+      const messages = await client.inbox(id);
+      const header = `# Inbox — ${id}\n\n${messages.length} message${messages.length === 1 ? "" : "s"}\n`;
+      const body = messages
+        .map((m, i) => {
+          const subj = m.subject ? ` · ${m.subject}` : "";
+          const kind = m.type ? ` _(${m.type})_` : "";
+          return `\n## ${i + 1}. from **${m.from}**${subj}${kind}\n\n${m.message}\n`;
+        })
+        .join("\n");
+      const doc = await vscode.workspace.openTextDocument({
+        language: "markdown",
+        content: header + (messages.length ? body : "\n_(empty)_\n"),
+      });
+      await vscode.window.showTextDocument(doc, { preview: true });
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
+  // Teams-view node extractors: the team node carries `team.name`; the task node
+  // carries `team` (string) + `task.id`.
+  const teamNameFrom = (arg: unknown): string | undefined => {
+    const n = arg as { kind?: string; team?: { name?: string } | string } | undefined;
+    if (n?.kind === "team" && typeof n.team === "object") {
+      return n.team?.name;
+    }
+    if (n?.kind === "task" && typeof n.team === "string") {
+      return n.team;
+    }
+    return undefined;
+  };
+  const taskRefFrom = (arg: unknown): { team: string; id: string } | undefined => {
+    const n = arg as { kind?: string; team?: string; task?: { id?: string } } | undefined;
+    if (n?.kind === "task" && typeof n.team === "string" && typeof n.task?.id === "string") {
+      return { team: n.team, id: n.task.id };
+    }
+    return undefined;
+  };
+
+  const taskAdd = async (arg?: unknown) => {
+    const client = getClient();
+    let team = teamNameFrom(arg);
+    if (!team) {
+      try {
+        const teams = await client.teams();
+        if (teams.length === 0) {
+          vscode.window.showInformationMessage("BWOC: no teams in this workspace.");
+          return;
+        }
+        const pick = await vscode.window.showQuickPick(
+          teams.map((t) => t.name),
+          { placeHolder: "Add a task to which team?" },
+        );
+        team = pick;
+      } catch (err) {
+        vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+        return;
+      }
+    }
+    if (!team) {
+      return;
+    }
+    const title = await vscode.window.showInputBox({
+      prompt: `New task for team ${team}`,
+      placeHolder: "Task description…",
+      validateInput: (v) => (v.trim().length === 0 ? "Task cannot be empty" : undefined),
+    });
+    if (title === undefined || title.trim().length === 0) {
+      return;
+    }
+    try {
+      await client.taskAdd(team, title);
+      vscode.window.showInformationMessage(`BWOC: added task to ${team}.`);
+      await vscode.commands.executeCommand("bwoc.refreshTeams");
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
+  const taskClaim = async (arg?: unknown) => {
+    const ref = taskRefFrom(arg);
+    if (!ref) {
+      vscode.window.showInformationMessage("BWOC: pick an open task in the Teams view to claim.");
+      return;
+    }
+    try {
+      await getClient().taskClaim(ref.team, ref.id);
+      vscode.window.showInformationMessage(`BWOC: claimed ${ref.id} in ${ref.team}.`);
+      await vscode.commands.executeCommand("bwoc.refreshTeams");
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
+  const taskComplete = async (arg?: unknown) => {
+    const ref = taskRefFrom(arg);
+    if (!ref) {
+      vscode.window.showInformationMessage("BWOC: pick a claimed task in the Teams view to complete.");
+      return;
+    }
+    try {
+      await getClient().taskComplete(ref.team, ref.id);
+      vscode.window.showInformationMessage(`BWOC: completed ${ref.id} in ${ref.team}.`);
+      await vscode.commands.executeCommand("bwoc.refreshTeams");
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
+  const doctor = async () => {
+    try {
+      const report = await getClient().doctor();
+      const lines = report.results
+        .map((r) => {
+          const mark = r.status === "pass" ? "✓" : r.status === "warn" ? "!" : "✗";
+          return `- ${mark} **${r.name}** — ${r.status}${r.detail ? `: ${r.detail}` : ""}`;
+        })
+        .join("\n");
+      const doc = await vscode.workspace.openTextDocument({
+        language: "markdown",
+        content: `# BWOC Doctor\n\nexit ${report.exit}\n\n${lines}\n`,
+      });
+      await vscode.window.showTextDocument(doc, { preview: true });
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
   const commandPalette = async () => {
     const pick = await vscode.window.showQuickPick(
       [
         { label: "$(comment-discussion) Chat with an agent", cmd: "bwoc.openChat" },
         { label: "$(play) Run a task on an agent", cmd: "bwoc.runTask" },
         { label: "$(comment) Send message to an agent", cmd: "bwoc.sendMessage" },
+        { label: "$(mail) View an agent's inbox", cmd: "bwoc.viewInbox" },
+        { label: "$(debug-start) Start an agent's daemon", cmd: "bwoc.startAgent" },
+        { label: "$(debug-stop) Stop an agent's daemon", cmd: "bwoc.stopAgent" },
+        { label: "$(add) Add a task to a team", cmd: "bwoc.taskAdd" },
+        { label: "$(stethoscope) Doctor — diagnose environment", cmd: "bwoc.doctor" },
         { label: "$(refresh) Refresh fleet", cmd: "bwoc.refreshFleet" },
         { label: "$(key) Enroll this controller (remote bwocd)", cmd: "bwoc.enrollController" },
         { label: "$(account) Remote status / who am I (bwocd)", cmd: "bwoc.remoteStatus" },
@@ -239,6 +411,13 @@ export function registerCommands(
     vscode.commands.registerCommand("bwoc.runTask", runTask),
     vscode.commands.registerCommand("bwoc.enrollController", enrollController),
     vscode.commands.registerCommand("bwoc.remoteStatus", remoteStatus),
+    vscode.commands.registerCommand("bwoc.startAgent", startAgent),
+    vscode.commands.registerCommand("bwoc.stopAgent", stopAgent),
+    vscode.commands.registerCommand("bwoc.viewInbox", viewInbox),
+    vscode.commands.registerCommand("bwoc.taskAdd", taskAdd),
+    vscode.commands.registerCommand("bwoc.taskClaim", taskClaim),
+    vscode.commands.registerCommand("bwoc.taskComplete", taskComplete),
+    vscode.commands.registerCommand("bwoc.doctor", doctor),
     vscode.commands.registerCommand("bwoc.commandPalette", commandPalette),
   );
 }

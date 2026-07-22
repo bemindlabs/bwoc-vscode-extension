@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+The operator-action gaps between the extension and the `bwoc` CLI — the surface was read-heavy (view fleet/teams/memory) but couldn't drive the common day-to-day actions:
+
+- **Agent lifecycle — Start / Stop daemon.** Fleet tree context menu (and palette) run `bwoc start` / `bwoc stop` (`--yes --json`) to spawn/stop an agent's `bwoc-agent --serve` daemon, then refresh the fleet. Local-CLI only (lifecycle isn't in bwocd's `/cli` capability allowlist; a remote host reports a clear "switch to Local CLI" note).
+- **View Inbox.** Fleet context menu (and palette) opens an agent's queued inbox messages (`bwoc inbox <id> --json`) in a markdown document — complements the existing inbox *notifications*, which only alerted. Works remotely too, over bwocd's dedicated `GET /agents/:id/inbox` route.
+- **Task actions.** Teams view context menu: **Add Task** (on a team), **Claim** (on an open task), **Complete** (on a claimed task) — `bwoc task add/claim/complete`, over the local CLI or bwocd's capability-gated `/cli` (write). The Teams view was read-only before.
+- **Doctor.** `BWOC: Doctor` runs `bwoc doctor --json` and renders the environment/workspace diagnosis in a document. Local-CLI only.
+
+
 ## [0.6.0] — 2026-07-20
 
 ### Added
