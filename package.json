@@ -151,6 +151,21 @@
         "icon": "$(stethoscope)"
       },
       {
+        "command": "bwoc.checkAgent",
+        "title": "BWOC: Check Agent (Backend-Neutrality)",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "bwoc.newAgent",
+        "title": "BWOC: New Agent (Incarnate)",
+        "icon": "$(person-add)"
+      },
+      {
+        "command": "bwoc.retireAgent",
+        "title": "BWOC: Retire Agent",
+        "icon": "$(trash)"
+      },
+      {
         "command": "bwoc.commandPalette",
         "title": "BWOC: Commands…"
       }
@@ -218,6 +233,21 @@
           "command": "bwoc.stopAgent",
           "when": "view == bwocFleet && viewItem == bwocAgent",
           "group": "3_life@2"
+        },
+        {
+          "command": "bwoc.checkAgent",
+          "when": "view == bwocFleet && viewItem == bwocAgent",
+          "group": "3_life@3"
+        },
+        {
+          "command": "bwoc.retireAgent",
+          "when": "view == bwocFleet && viewItem == bwocAgent",
+          "group": "4_danger@1"
+        },
+        {
+          "command": "bwoc.checkAgent",
+          "when": "view == bwocProfiles && viewItem == bwocProfileAgent",
+          "group": "1_act@1"
         },
         {
           "command": "bwoc.taskAdd",

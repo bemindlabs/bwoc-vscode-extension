@@ -8,6 +8,13 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+Agent-authoring / lifecycle-management actions (the remaining CLI gaps that fit a fleet control surface):
+
+- **Check (backend-neutrality).** Fleet + **Agent Profiles** context menu (and palette) runs `bwoc check <agent-path> --json` and renders the neutrality audit (violations + passes) in a document. Tolerates the non-zero exit `check` returns when there are violations (the JSON report is still emitted). Natural on the Profiles view for agent authors.
+- **New Agent (incarnate).** `BWOC: New Agent` prompts a name + backend and runs `bwoc new <name> --backend <backend>` (the workspace resolves the default target/template), then refreshes the fleet.
+- **Retire Agent.** Fleet context menu (and palette), behind a **modal** confirmation, runs `bwoc retire <name> --yes --json` to remove an agent from the registry + files, then refreshes.
+- All three are local-CLI only (not in bwocd's `/cli` allowlist); a remote host surfaces a clear "switch to Local CLI" note.
+
 The operator-action gaps between the extension and the `bwoc` CLI — the surface was read-heavy (view fleet/teams/memory) but couldn't drive the common day-to-day actions:
 
 - **Agent lifecycle — Start / Stop daemon.** Fleet tree context menu (and palette) run `bwoc start` / `bwoc stop` (`--yes --json`) to spawn/stop an agent's `bwoc-agent --serve` daemon, then refresh the fleet. Local-CLI only (lifecycle isn't in bwocd's `/cli` capability allowlist; a remote host reports a clear "switch to Local CLI" note).

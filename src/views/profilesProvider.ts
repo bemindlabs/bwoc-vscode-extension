@@ -39,6 +39,7 @@ export class ProfilesProvider implements vscode.TreeDataProvider<ProfileNode> {
     if (node.kind === "agent") {
       const item = new vscode.TreeItem(node.id, vscode.TreeItemCollapsibleState.Collapsed);
       item.iconPath = new vscode.ThemeIcon("person");
+      item.contextValue = "bwocProfileAgent";
       return item;
     }
     if (node.kind === "dir") {
