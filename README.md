@@ -63,7 +63,8 @@ without touching the views.
 | **P2** | Command palette (send message) + `bwocd` signed-HTTP remote transport | ✅ |
 | **P3** | Streaming agent chat webview (`chat_proto` NDJSON) + permission prompts | ✅ |
 | **P4** | `@bwoc` Copilot chat participant + `bwoc-mcp` server registration | ✅ |
-| **P5** | Inbox notifications + Marketplace publish | ✅ |
+| **P5** | Inbox notifications (Marketplace: publish-ready, not yet published — needs a PAT) | 🟡 |
+| **P6** | Operator + agent-authoring actions — Start/Stop daemon, View Inbox, Task add/claim/complete, Doctor, Check, New Agent, Retire (v0.7.0) | ✅ |
 
 ## Development
 
