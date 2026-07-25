@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-07-25
+
 ### Added
 
 Agent-authoring / lifecycle-management actions (the remaining CLI gaps that fit a fleet control surface):
