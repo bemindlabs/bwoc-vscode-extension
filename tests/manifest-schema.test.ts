@@ -15,7 +15,20 @@ describe("config.manifest.json schema", () => {
     expect(schema.type).toBe("object");
     // Lenient so extra sections (e.g. `skills`) don't false-flag valid files.
     expect(schema.additionalProperties).toBe(true);
-    expect(schema.required).toEqual(["agentId", "name", "primaryModel"]);
+    expect(schema.required).toEqual([
+      "agentId",
+      "name",
+      "primaryModel",
+      "agentRole",
+      "memoryPath",
+      "version",
+      "lintCmd",
+      "formatCmd",
+      "testCmd",
+      "buildCmd",
+    ]);
+    // `skills` is modelled (category → array of skill entries).
+    expect(schema.properties.skills.type).toBe("object");
   });
 
   it("types the fields that are easy to get wrong when hand-editing", () => {
