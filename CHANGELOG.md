@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.9.5] — 2026-08-08
+
+### Added
+
+- **Add a remote host from the UI — no more hand-editing settings JSON.** `BWOC: Switch Fleet Host` (and the new `BWOC: Add Remote Host…` command) now offer an **"Add remote host…"** step: a two-prompt flow (name → URL, URL-validated) that writes `bwoc.remote.hosts` and switches to the new host. When no hosts are configured yet, switching goes straight to the add flow instead of the old dead-end "configure it in settings" message.
+
 ## [0.9.4] — 2026-08-08
 
 ### Fixed

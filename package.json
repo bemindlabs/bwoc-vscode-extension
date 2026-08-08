@@ -1,7 +1,7 @@
 {
   "name": "bwoc-vscode-extension",
   "displayName": "BWOC Fleet",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "private": true,
   "description": "Operate your BWOC agent fleet from VS Code — a native control surface over the bwoc CLI, with Copilot agent-mode tools to read and drive the whole fleet.",
   "publisher": "bemindlabs",
@@ -114,6 +114,11 @@
         "command": "bwoc.switchHost",
         "title": "BWOC: Switch Fleet Host",
         "icon": "$(server-environment)"
+      },
+      {
+        "command": "bwoc.addRemoteHost",
+        "title": "BWOC: Add Remote Host…",
+        "icon": "$(add)"
       },
       {
         "command": "bwoc.startAgent",
