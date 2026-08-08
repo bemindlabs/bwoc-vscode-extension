@@ -198,6 +198,10 @@ export class CliBackend implements BwocClient {
       const { stdout } = await execFileAsync(this.opts.binaryPath, full, {
         maxBuffer: 16 * 1024 * 1024,
         timeout: timeoutMs,
+        // Run in the workspace so verbs that resolve a *positional path* against
+        // cwd (e.g. `bwoc check <agent-path>`) hit the right dir — `--workspace`
+        // alone doesn't reroot those. Harmless for verbs that use --workspace.
+        cwd: this.opts.workspace || undefined,
       });
       return stdout;
     } catch (err) {
@@ -298,6 +302,9 @@ export class CliBackend implements BwocClient {
       const { stdout } = await execFileAsync(this.opts.binaryPath, full, {
         maxBuffer: 16 * 1024 * 1024,
         timeout: 15_000,
+        // See exec(): resolve positional-path verbs (`bwoc check <path>`) against
+        // the workspace, not VS Code's cwd.
+        cwd: this.opts.workspace || undefined,
       });
       return stdout;
     } catch (err) {
