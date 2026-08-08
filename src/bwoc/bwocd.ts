@@ -311,4 +311,14 @@ export class BwocdBackend implements BwocClient {
   async retire(_name: string): Promise<string> {
     this.localOnly("Retire agent");
   }
+
+  async broadcast(message: string, team?: string): Promise<string> {
+    const args = team ? ["send", "--team", team, message] : ["send", "--all", message];
+    return (await this.cli(args)).trim();
+  }
+
+  async outboxFlush(peer?: string): Promise<string> {
+    const args = peer ? ["outbox", "flush", "--peer", peer] : ["outbox", "flush"];
+    return (await this.cli(args)).trim();
+  }
 }
