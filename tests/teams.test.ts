@@ -46,15 +46,15 @@ describe("parseMemories", () => {
       ],
     });
     expect(parseMemories(out)).toEqual([
-      { name: "readme-style.md", sizeBytes: 100 },
-      { name: "bwoc-party.md", sizeBytes: 200 },
+      { name: "readme-style.md", sizeBytes: 100, path: "/ws/.bwoc/memory/readme-style.md" },
+      { name: "bwoc-party.md", sizeBytes: 200, path: "/ws/.bwoc/memory/bwoc-party.md" },
     ]);
   });
-  it("tolerates empty/missing entries", async () => {
+  it("tolerates empty/missing entries (and no memory dir → empty path)", async () => {
     const { parseMemories } = await import("../src/bwoc/cli");
     expect(parseMemories(JSON.stringify({ count: 0, entries: [] }))).toEqual([]);
     expect(parseMemories(JSON.stringify({ entries: [{ name: "x" }] }))).toEqual([
-      { name: "x", sizeBytes: 0 },
+      { name: "x", sizeBytes: 0, path: "" },
     ]);
   });
 });

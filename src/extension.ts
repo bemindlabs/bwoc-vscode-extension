@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+
 import * as vscode from "vscode";
 
 import {
@@ -6,6 +8,7 @@ import {
   createClient,
   ACTIVE_HOST_KEY,
   LOCAL_SENTINEL,
+  type MemoryEntry,
   remoteHosts,
 } from "./bwoc";
 import { registerChatParticipant } from "./chat/participant";
@@ -89,12 +92,22 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("bwoc.refreshTeams", () => teams.refresh()),
     vscode.commands.registerCommand("bwoc.refreshMemory", () => memory.refresh()),
     vscode.commands.registerCommand("bwoc.refreshProfiles", () => profiles.refresh()),
-    vscode.commands.registerCommand("bwoc.openMemory", async (name?: string) => {
-      if (!name) {
+    vscode.commands.registerCommand("bwoc.openMemory", async (arg?: MemoryEntry | string) => {
+      // The tree passes the entry; older callers / palette may pass a name.
+      const entry: MemoryEntry | undefined =
+        typeof arg === "string" ? { name: arg, sizeBytes: 0, path: "" } : arg;
+      if (!entry?.name) {
         return;
       }
       try {
-        const content = await client.memoryContent(name);
+        // Prefer the real file so edits save to disk (a local workspace). Fall
+        // back to a read-only content view when the file isn't local — e.g. a
+        // remote bwocd host, where `entry.path` is the remote path.
+        if (entry.path && existsSync(entry.path)) {
+          await vscode.commands.executeCommand("vscode.open", vscode.Uri.file(entry.path));
+          return;
+        }
+        const content = await client.memoryContent(entry.name);
         const doc = await vscode.workspace.openTextDocument({
           language: "markdown",
           content,

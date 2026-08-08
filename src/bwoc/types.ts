@@ -62,6 +62,11 @@ export interface Task {
 export interface MemoryEntry {
   name: string;
   sizeBytes: number;
+  /** Absolute path to the entry's file (`<workspace_memory_dir>/<name>`). On a
+   *  remote (bwocd) host this is the *remote* path, so callers that open it must
+   *  check it exists locally first (see `bwoc.openMemory`). Empty when the CLI
+   *  didn't report a memory dir. */
+  path: string;
 }
 
 /** One message from `bwoc inbox <agent> --json` → `messages[]`. */

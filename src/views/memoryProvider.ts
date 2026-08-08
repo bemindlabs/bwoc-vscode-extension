@@ -23,10 +23,13 @@ export class MemoryProvider implements vscode.TreeDataProvider<MemoryEntry> {
     const item = new vscode.TreeItem(entry.name, vscode.TreeItemCollapsibleState.None);
     item.description = `${(entry.sizeBytes / 1024).toFixed(1)} KB`;
     item.iconPath = new vscode.ThemeIcon("book");
+    if (entry.path) {
+      item.resourceUri = vscode.Uri.file(entry.path);
+    }
     item.command = {
       command: "bwoc.openMemory",
       title: "Open Memory Entry",
-      arguments: [entry.name],
+      arguments: [entry],
     };
     return item;
   }
