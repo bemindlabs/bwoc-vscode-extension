@@ -26,7 +26,7 @@ describe("formatAgentList", () => {
     ]);
     expect(md).toContain("**2 agents**");
     expect(md).toContain("**agent-anna** — 🟢 running");
-    expect(md).toContain("**agent-luban** — ⚪ active · inbox 3");
+    expect(md).toContain("**agent-luban** — ⚪ offline · inbox 3");
     expect(md).toContain("`(claude)`");
   });
 });
