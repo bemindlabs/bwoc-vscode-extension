@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.9.3] — 2026-08-08
+
+### Fixed
+
+- **Check Agent (backend-neutrality) audited the wrong directory → spurious violations.** The command and the `#bwocCheckAgent` tool pass `bwoc check` a workspace-*relative* agent path, but the CLI was spawned with no `cwd`, so `bwoc check` resolved that path against VS Code's working directory (usually not the workspace) and audited a nonexistent dir. The `bwoc` process now runs with `cwd` set to the workspace, so positional-path verbs like `check` hit the right agent.
+
 ## [0.9.2] — 2026-08-08
 
 ### Fixed
