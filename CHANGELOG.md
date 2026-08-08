@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-08-08
+
+### Added
+
+- **JSON schema for `config.manifest.json` — editing an agent's manifest now has autocomplete, hover docs, and inline validation.** A `jsonValidation` contribution binds `schemas/config.manifest.schema.json` to `**/agents/**/config.manifest.json`, so opening a manifest from the **Agent Profiles** view (it was already editable — a click opens the real file) gains field completion, type-checking (e.g. `maxTokens` must be a number, `thinking` a boolean, `autoModels` a string array), and hover descriptions sourced from the framework manifest. The schema is intentionally lenient (`additionalProperties: true`, minimal `required`) so it assists without false-flagging valid files that carry extra sections like `skills`; `bwoc check` remains the source of truth for neutrality + completeness.
+
 ## [0.8.0] — 2026-08-08
 
 ### Added

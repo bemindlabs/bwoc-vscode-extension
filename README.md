@@ -61,6 +61,11 @@ MCP.)
 3. **If `bwoc` isn't on `PATH`**, set `bwoc.binaryPath` (and optionally `bwoc.workspace`)
    in Settings.
 
+4. **Edit agent config** from the **Agent Profiles** view — click `config.manifest.json`
+   (or `AGENTS.md`, persona/mindset/skill files) to open the real file. Manifests get JSON
+   **autocomplete, hover docs, and inline validation** from a bundled schema; `bwoc check`
+   stays the source of truth for backend-neutrality.
+
 ## Settings
 
 | Key | Default | Purpose |

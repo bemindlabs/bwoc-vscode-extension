@@ -1,0 +1,149 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/bemindlabs/bwoc-vscode-extension/schemas/config.manifest.schema.json",
+  "title": "BWOC agent manifest",
+  "description": "config.manifest.json for an incarnated BWOC agent. Camel-cased fields mirror bwoc-core's Manifest. Editor assistance only — `bwoc check` remains the source of truth for backend-neutrality and completeness.",
+  "type": "object",
+  "required": ["agentId", "name", "primaryModel"],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Agent name (kebab-case). agentId is derived as agent-<name>."
+    },
+    "agentId": {
+      "type": "string",
+      "pattern": "^agent-[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "description": "Canonical id, agent-<name> (kebab-case)."
+    },
+    "agentRole": {
+      "type": "string",
+      "description": "One-line role description."
+    },
+    "primaryModel": {
+      "type": "string",
+      "description": "Primary LLM model identifier, or the literal \"auto\" to let the harness pick from autoModels at runtime."
+    },
+    "fallbackModel": {
+      "type": "string",
+      "description": "Fallback LLM model identifier."
+    },
+    "autoModels": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Candidate model pool (preference order) used when primaryModel is \"auto\". For OpenAI-compatible endpoints put frontier models first and cheaper fallbacks later."
+    },
+    "reasoningEffort": {
+      "type": "string",
+      "description": "Optional backend effort control. Backend-neutral field; the value space is backend-specific (Claude: low|medium|high|xhigh|max; OpenAI-compatible: e.g. low|medium|high|xhigh). Backends without effort control ignore it.",
+      "examples": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "maxTokens": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Optional output-token ceiling. Claude requires max_tokens and uses this instead of the harness default; OpenAI-compatible backends send it as max_tokens when set."
+    },
+    "promptCache": {
+      "type": "boolean",
+      "description": "Provider prompt caching (default on). Set false for a volatile system prompt."
+    },
+    "thinking": {
+      "type": "boolean",
+      "description": "Adaptive extended thinking (default off). When true the native Claude path requests thinking:{type:adaptive} and replays thinking blocks across turns."
+    },
+    "memoryPath": {
+      "type": "string",
+      "description": "File-based memory directory (e.g. memories/)."
+    },
+    "sessionsPath": {
+      "type": "string",
+      "description": "Session data directory for Tier 2 memory mining."
+    },
+    "deepMemoryCmd": {
+      "type": "string",
+      "description": "Tier 2 memory CLI command."
+    },
+    "lintCmd": { "type": "string", "description": "Lint command for the verification gate." },
+    "formatCmd": { "type": "string", "description": "Format command for the verification gate." },
+    "testCmd": { "type": "string", "description": "Test command for the verification gate." },
+    "buildCmd": { "type": "string", "description": "Build command for the verification gate." },
+    "worktreeBase": {
+      "type": "string",
+      "description": "Base directory for worktrees (default /tmp)."
+    },
+    "scopeDescription": {
+      "type": "string",
+      "description": "What this agent does (its scope)."
+    },
+    "outOfScope": {
+      "type": "string",
+      "description": "What this agent explicitly does not do."
+    },
+    "backend": {
+      "type": "string",
+      "description": "LLM backend adapter. Leave unset to use the workspace/registry default.",
+      "examples": [
+        "claude",
+        "antigravity",
+        "codex",
+        "kimi",
+        "copilot",
+        "ollama",
+        "openai-compatible",
+        "openrouter",
+        "litellm"
+      ]
+    },
+    "cliCmd": {
+      "type": "string",
+      "description": "Override the backend CLI command (for CLI-driven backends)."
+    },
+    "baseUrl": {
+      "type": "string",
+      "description": "OpenAI-compatible endpoint base URL (include /v1 if the provider requires it)."
+    },
+    "version": {
+      "type": "string",
+      "description": "Manifest schema version (e.g. \"2.0\")."
+    },
+    "trust": {
+      "type": "object",
+      "description": "Trust-v2 block: declared qualities, required trust of senders, and refusal mode.",
+      "additionalProperties": true,
+      "properties": {
+        "schemaVersion": {
+          "type": "integer",
+          "description": "Trust block schema version."
+        },
+        "declared": {
+          "type": "object",
+          "description": "Kalyāṇamitta qualities this agent claims. Missing → false.",
+          "additionalProperties": true,
+          "properties": {
+            "piyo": { "type": "boolean" },
+            "garu": { "type": "boolean" },
+            "bhavaniyo": { "type": "boolean" },
+            "vatta": { "type": "boolean" },
+            "vacanakkhamo": { "type": "boolean" },
+            "gambhira": { "type": "boolean" },
+            "noCatthana": { "type": "boolean" }
+          }
+        },
+        "requiredTrust": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Qualities a sender must declare to be accepted. Empty → refusal mode Off."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["off", "warn", "refuse"],
+          "description": "Refusal mode. Empty requiredTrust → off; non-empty → refuse. warn is strictly opt-in."
+        },
+        "signingPublicKey": {
+          "type": "string",
+          "description": "ed25519 public key (hex). Written by `bwoc trust --keygen`; the private key stays in .bwoc/agent.key."
+        }
+      }
+    }
+  }
+}
