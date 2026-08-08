@@ -6,6 +6,18 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-08-08
+
+### Added
+
+**Native Language Model Tools — Copilot agent-mode can now fully manage and control the fleet, no separate `bwoc-mcp` server required.** The extension contributes 20 native tools over the existing `BwocClient`, so Copilot (and `#bwoc*` references in chat) can read *and* drive the fleet directly:
+
+- **Read (auto-invoke):** `#bwocList`, `#bwocAgentStatus`, `#bwocTeams`, `#bwocTeamTasks`, `#bwocMemoryList`, `#bwocMemoryRead`, `#bwocInbox`, `#bwocDoctor`, `#bwocCheckAgent`.
+- **Write / control (each behind a user confirmation):** `#bwocSendMessage`, `#bwocBroadcast`, `#bwocRunTask`, `#bwocTaskAdd`, `#bwocTaskClaim`, `#bwocTaskComplete`, `#bwocStartAgent`, `#bwocStopAgent`, `#bwocOutboxFlush`, `#bwocNewAgent`, `#bwocRetireAgent`.
+- Anything that changes the fleet asks the user to confirm first (`prepareInvocation` → `confirmationMessages`); reads run without a prompt. Results come back as friendly Markdown (state icons, agent ids, task marks).
+- `BwocClient` gained `broadcast(message, team?)` (`bwoc send --all` / `--team`) and `outboxFlush(peer?)` (`bwoc outbox flush`), wired on both the local-CLI and remote-`bwocd` backends.
+- The `@bwoc` chat participant got a warmer capability hint that points at the new tools.
+
 ## [0.7.0] — 2026-07-25
 
 ### Added

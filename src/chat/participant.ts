@@ -63,13 +63,17 @@ export function registerChatParticipant(
         stream.markdown(formatAgentList(await client.list()));
         return;
       }
-      // Default: a short capability hint. (Delegating the free-text prompt to an
-      // agent chat turn is a later slice — kept out so `@bwoc` never silently
+      // Default: a friendly capability hint. (Delegating the free-text prompt to
+      // an agent chat turn is a later slice — kept out so `@bwoc` never silently
       // acts on an ambiguous request.)
       stream.markdown(
-        "I coordinate your **BWOC** fleet. Try:\n\n" +
-          "- `@bwoc /list` — list agents\n" +
-          "- `@bwoc /status <agent-id>` — an agent's health & config",
+        "👋 Hi! I'm your **BWOC fleet** copilot. Quick things I can show you:\n\n" +
+          "- `@bwoc /list` — see every agent and its status\n" +
+          "- `@bwoc /status <agent-id>` — one agent's health & config\n\n" +
+          "💡 In **agent mode** you can also just ask me in plain language — I now bring native " +
+          "tools (`#bwocList`, `#bwocSendMessage`, `#bwocBroadcast`, `#bwocRunTask`, …) so Copilot " +
+          "can read *and* drive the fleet for you. Anything that changes the fleet asks you to " +
+          "confirm first.",
       );
     } catch (err) {
       stream.markdown(`⚠️ ${errText(err)}`);

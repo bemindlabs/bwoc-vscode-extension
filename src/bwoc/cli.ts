@@ -327,4 +327,14 @@ export class CliBackend implements BwocClient {
     };
     return `retired (${doc.mode ?? "removed"})`;
   }
+
+  async broadcast(message: string, team?: string): Promise<string> {
+    const args = team ? ["send", "--team", team, message] : ["send", "--all", message];
+    return (await this.exec(args)).trim();
+  }
+
+  async outboxFlush(peer?: string): Promise<string> {
+    const args = peer ? ["outbox", "flush", "--peer", peer] : ["outbox", "flush"];
+    return (await this.exec(args)).trim();
+  }
 }

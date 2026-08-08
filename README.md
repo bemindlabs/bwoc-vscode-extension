@@ -25,8 +25,25 @@ Activity Bar ── TreeDataProvider ──▶ execFile `bwoc list|status --json
 ```
 
 The transport lives behind a single `BwocClient` interface (`src/bwoc/`), so a signed-HTTP
-`bwocd` backend (for remote / tailnet fleets) and Copilot / MCP integration slot in later
+`bwocd` backend (for remote / tailnet fleets) and the Copilot integration are layered on top
 without touching the views.
+
+## Copilot agent-mode: drive the fleet with tools
+
+The extension contributes **native VS Code Language Model Tools**, so **Copilot agent-mode
+can fully manage and control the fleet** — no separate `bwoc-mcp` server required. Ask in
+plain language, or `#`-reference a tool directly:
+
+- **Read (run automatically):** `#bwocList`, `#bwocAgentStatus`, `#bwocTeams`,
+  `#bwocTeamTasks`, `#bwocMemoryList`, `#bwocMemoryRead`, `#bwocInbox`, `#bwocDoctor`,
+  `#bwocCheckAgent`.
+- **Write / control (ask you to confirm first):** `#bwocSendMessage`, `#bwocBroadcast`,
+  `#bwocRunTask`, `#bwocTaskAdd` / `Claim` / `Complete`, `#bwocStartAgent` / `StopAgent`,
+  `#bwocOutboxFlush`, `#bwocNewAgent`, `#bwocRetireAgent`.
+
+Each tool wraps the same `bwoc` CLI the views use, so it works against a local workspace out
+of the box. (The standalone `bwoc-mcp` MCP server is still offered for editors that prefer
+MCP.)
 
 ## Setup
 

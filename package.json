@@ -1,9 +1,9 @@
 {
   "name": "bwoc-vscode-extension",
   "displayName": "BWOC Fleet",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
-  "description": "Operate your BWOC agent fleet from VS Code — a native control surface over the bwoc CLI (bwocd remote + Copilot integration to come).",
+  "description": "Operate your BWOC agent fleet from VS Code — a native control surface over the bwoc CLI, with Copilot agent-mode tools to read and drive the whole fleet.",
   "publisher": "bemindlabs",
   "homepage": "https://github.com/bemindlabs/bwoc-vscode-extension",
   "repository": "https://github.com/bemindlabs/bwoc-vscode-extension",
@@ -339,6 +339,321 @@
       {
         "id": "bwoc.mcp",
         "label": "BWOC Fleet (bwoc-mcp)"
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "bwoc_list",
+        "displayName": "List agents",
+        "modelDescription": "List every agent in the active BWOC workspace with running state, backend, and pending inbox count. Use this first to discover agent ids before other tools.",
+        "toolReferenceName": "bwocList",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(list-unordered)",
+        "tags": ["bwoc", "fleet"],
+        "inputSchema": { "type": "object", "properties": {} }
+      },
+      {
+        "name": "bwoc_agentStatus",
+        "displayName": "Agent status",
+        "modelDescription": "Show one agent's health, backend, model, inbox count, and resource counts. Input: agentId (e.g. 'agent-anna' or 'anna').",
+        "toolReferenceName": "bwocAgentStatus",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(pulse)",
+        "tags": ["bwoc", "fleet"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "agentId": { "type": "string", "description": "Agent id or bare name." }
+          },
+          "required": ["agentId"]
+        }
+      },
+      {
+        "name": "bwoc_teams",
+        "displayName": "List teams",
+        "modelDescription": "List the Saṅgha teams in the workspace and their members.",
+        "toolReferenceName": "bwocTeams",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(organization)",
+        "tags": ["bwoc", "teams"],
+        "inputSchema": { "type": "object", "properties": {} }
+      },
+      {
+        "name": "bwoc_teamTasks",
+        "displayName": "Team tasks",
+        "modelDescription": "List a team's shared task list with state (open/claimed/done). Input: team name.",
+        "toolReferenceName": "bwocTeamTasks",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(checklist)",
+        "tags": ["bwoc", "teams"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "team": { "type": "string", "description": "Team name." }
+          },
+          "required": ["team"]
+        }
+      },
+      {
+        "name": "bwoc_memoryList",
+        "displayName": "List memory",
+        "modelDescription": "List the workspace-level memory entries (.bwoc/memory/).",
+        "toolReferenceName": "bwocMemoryList",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(database)",
+        "tags": ["bwoc", "memory"],
+        "inputSchema": { "type": "object", "properties": {} }
+      },
+      {
+        "name": "bwoc_memoryRead",
+        "displayName": "Read memory",
+        "modelDescription": "Read the contents of one workspace memory entry. Input: name (from bwoc_memoryList).",
+        "toolReferenceName": "bwocMemoryRead",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(book)",
+        "tags": ["bwoc", "memory"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string", "description": "Memory entry name." }
+          },
+          "required": ["name"]
+        }
+      },
+      {
+        "name": "bwoc_inbox",
+        "displayName": "Read agent inbox",
+        "modelDescription": "Read an agent's queued inbox messages. Input: agentId.",
+        "toolReferenceName": "bwocInbox",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(mail)",
+        "tags": ["bwoc", "fleet"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "agentId": { "type": "string", "description": "Agent id or bare name." }
+          },
+          "required": ["agentId"]
+        }
+      },
+      {
+        "name": "bwoc_doctor",
+        "displayName": "Doctor",
+        "modelDescription": "Diagnose the environment and workspace (bwoc doctor): binary, workspace, agents.",
+        "toolReferenceName": "bwocDoctor",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(heart)",
+        "tags": ["bwoc", "diagnostics"],
+        "inputSchema": { "type": "object", "properties": {} }
+      },
+      {
+        "name": "bwoc_checkAgent",
+        "displayName": "Check agent neutrality",
+        "modelDescription": "Run the backend-neutrality audit on one agent (bwoc check). Read-only. Input: agentId.",
+        "toolReferenceName": "bwocCheckAgent",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(verified)",
+        "tags": ["bwoc", "diagnostics"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "agentId": { "type": "string", "description": "Agent id or bare name." }
+          },
+          "required": ["agentId"]
+        }
+      },
+      {
+        "name": "bwoc_sendMessage",
+        "displayName": "Send message to agent",
+        "modelDescription": "Send a message to one agent's inbox (bwoc send). A write action — the user is asked to confirm. Input: to (agent id), message.",
+        "userDescription": "Send a message to a BWOC agent's inbox.",
+        "toolReferenceName": "bwocSendMessage",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(comment)",
+        "tags": ["bwoc", "fleet", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "to": { "type": "string", "description": "Recipient agent id or bare name." },
+            "message": { "type": "string", "description": "Message text." }
+          },
+          "required": ["to", "message"]
+        }
+      },
+      {
+        "name": "bwoc_broadcast",
+        "displayName": "Broadcast message",
+        "modelDescription": "Broadcast one message to every workspace agent, or to a team's members when 'team' is given (bwoc send --all / --team). A write action — the user confirms. Input: message, optional team.",
+        "userDescription": "Broadcast a message to the whole fleet or a team.",
+        "toolReferenceName": "bwocBroadcast",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(megaphone)",
+        "tags": ["bwoc", "fleet", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "message": { "type": "string", "description": "Message text." },
+            "team": { "type": "string", "description": "Optional team name; omit to broadcast to every agent." }
+          },
+          "required": ["message"]
+        }
+      },
+      {
+        "name": "bwoc_runTask",
+        "displayName": "Run task on agent",
+        "modelDescription": "Run a single task on an agent non-interactively (one headless turn) and return the result (bwoc run). A write/exec action — the user confirms. Input: agentId, task.",
+        "userDescription": "Run a headless task on a BWOC agent.",
+        "toolReferenceName": "bwocRunTask",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(play)",
+        "tags": ["bwoc", "fleet", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "agentId": { "type": "string", "description": "Agent id or bare name." },
+            "task": { "type": "string", "description": "The task prompt." }
+          },
+          "required": ["agentId", "task"]
+        }
+      },
+      {
+        "name": "bwoc_taskAdd",
+        "displayName": "Add team task",
+        "modelDescription": "Add a task to a team's shared list (bwoc task add). A write action — the user confirms. Input: team, title.",
+        "userDescription": "Add a task to a team's shared list.",
+        "toolReferenceName": "bwocTaskAdd",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(add)",
+        "tags": ["bwoc", "teams", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "team": { "type": "string", "description": "Team name." },
+            "title": { "type": "string", "description": "Task title / description." }
+          },
+          "required": ["team", "title"]
+        }
+      },
+      {
+        "name": "bwoc_taskClaim",
+        "displayName": "Claim team task",
+        "modelDescription": "Claim an open task in a team (bwoc task claim). A write action — the user confirms. Input: team, taskId.",
+        "userDescription": "Claim a task in a team.",
+        "toolReferenceName": "bwocTaskClaim",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(check)",
+        "tags": ["bwoc", "teams", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "team": { "type": "string", "description": "Team name." },
+            "taskId": { "type": "string", "description": "Task id (from bwoc_teamTasks)." }
+          },
+          "required": ["team", "taskId"]
+        }
+      },
+      {
+        "name": "bwoc_taskComplete",
+        "displayName": "Complete team task",
+        "modelDescription": "Mark a claimed task complete (bwoc task complete). A write action — the user confirms. Input: team, taskId.",
+        "userDescription": "Mark a team task complete.",
+        "toolReferenceName": "bwocTaskComplete",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(pass)",
+        "tags": ["bwoc", "teams", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "team": { "type": "string", "description": "Team name." },
+            "taskId": { "type": "string", "description": "Task id." }
+          },
+          "required": ["team", "taskId"]
+        }
+      },
+      {
+        "name": "bwoc_startAgent",
+        "displayName": "Start agent daemon",
+        "modelDescription": "Start an agent's daemon (bwoc start). A control action — the user confirms. Local CLI host only. Input: agentId.",
+        "userDescription": "Start a BWOC agent's daemon.",
+        "toolReferenceName": "bwocStartAgent",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(debug-start)",
+        "tags": ["bwoc", "fleet", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "agentId": { "type": "string", "description": "Agent id or bare name." }
+          },
+          "required": ["agentId"]
+        }
+      },
+      {
+        "name": "bwoc_stopAgent",
+        "displayName": "Stop agent daemon",
+        "modelDescription": "Stop an agent's daemon (bwoc stop). A control action — the user confirms. Local CLI host only. Input: agentId.",
+        "userDescription": "Stop a BWOC agent's daemon.",
+        "toolReferenceName": "bwocStopAgent",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(debug-stop)",
+        "tags": ["bwoc", "fleet", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "agentId": { "type": "string", "description": "Agent id or bare name." }
+          },
+          "required": ["agentId"]
+        }
+      },
+      {
+        "name": "bwoc_outboxFlush",
+        "displayName": "Flush outbox",
+        "modelDescription": "Retry spooled outbox messages that couldn't be delivered to offline peers (bwoc outbox flush). A control action — the user confirms. Input: optional peer.",
+        "userDescription": "Retry spooled outbox deliveries.",
+        "toolReferenceName": "bwocOutboxFlush",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(sync)",
+        "tags": ["bwoc", "fleet", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "peer": { "type": "string", "description": "Optional recipient to flush; omit for all peers." }
+          }
+        }
+      },
+      {
+        "name": "bwoc_newAgent",
+        "displayName": "Incarnate new agent",
+        "modelDescription": "Create (incarnate) a new agent (bwoc new). Writes files and registers the agent. A control action — the user confirms. Local CLI host only. Input: name, backend.",
+        "userDescription": "Incarnate a new BWOC agent.",
+        "toolReferenceName": "bwocNewAgent",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(person-add)",
+        "tags": ["bwoc", "fleet", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string", "description": "New agent name." },
+            "backend": { "type": "string", "description": "LLM backend (e.g. claude, codex, ollama)." }
+          },
+          "required": ["name", "backend"]
+        }
+      },
+      {
+        "name": "bwoc_retireAgent",
+        "displayName": "Retire agent",
+        "modelDescription": "Retire an agent — remove it from the registry and delete its files (bwoc retire). Destructive and irreversible. The user confirms. Local CLI host only. Input: agentId.",
+        "userDescription": "Retire (remove) a BWOC agent — destructive.",
+        "toolReferenceName": "bwocRetireAgent",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(trash)",
+        "tags": ["bwoc", "fleet", "write"],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "agentId": { "type": "string", "description": "Agent id or bare name." }
+          },
+          "required": ["agentId"]
+        }
       }
     ]
   },

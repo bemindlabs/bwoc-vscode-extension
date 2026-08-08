@@ -128,4 +128,11 @@ export interface BwocClient {
   newAgent(name: string, backend: string): Promise<string>;
   /** Retire an agent — remove from the registry + files (`bwoc retire`). */
   retire(name: string): Promise<string>;
+  /** Broadcast one message to every workspace agent (`team` omitted →
+   *  `bwoc send --all`) or to a Saṅgha team's members (`bwoc send --team`).
+   *  Returns the CLI's fan-out summary. */
+  broadcast(message: string, team?: string): Promise<string>;
+  /** Retry spooled outbox messages (`bwoc outbox flush`), optionally for one
+   *  peer. Returns the flush summary line. */
+  outboxFlush(peer?: string): Promise<string>;
 }

@@ -13,6 +13,7 @@ import { registerCommands } from "./commands";
 import { InboxWatcher } from "./inbox";
 import { registerMcpProvider } from "./mcp";
 import { FleetStatusBar } from "./statusBar";
+import { registerBwocTools } from "./tools";
 import { FleetProvider } from "./views/fleetProvider";
 import { MemoryProvider } from "./views/memoryProvider";
 import { ProfilesProvider } from "./views/profilesProvider";
@@ -45,6 +46,9 @@ export function activate(context: vscode.ExtensionContext): void {
   // provider (both no-op gracefully on editors that lack the API).
   registerChatParticipant(context, () => client);
   registerMcpProvider(context);
+  // Native LM tools: Copilot agent-mode drives the fleet directly (no separate
+  // bwoc-mcp server needed). Reads the live client so a host switch is picked up.
+  registerBwocTools(context, () => client);
 
   // Inbox notifications: poll the fleet and notify on new arrivals.
   const inbox = new InboxWatcher(() => client, output);
