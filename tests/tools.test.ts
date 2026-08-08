@@ -195,3 +195,23 @@ describe("write tool specs are confirmed", () => {
     expect(calls).toEqual([undefined, "tianting"]);
   });
 });
+
+describe("local-only tool marking", () => {
+  it("marks daemon-lifecycle + host-diagnostic tools local-only, reads not", () => {
+    const localOnly = (n: string) => TOOL_SPECS.find((t) => t.name === n)?.localOnly === true;
+    for (const n of [
+      "bwoc_startAgent",
+      "bwoc_stopAgent",
+      "bwoc_newAgent",
+      "bwoc_retireAgent",
+      "bwoc_doctor",
+      "bwoc_checkAgent",
+    ]) {
+      expect(localOnly(n), n).toBe(true);
+    }
+    // Reads + message ops work over remote bwocd → not local-only.
+    for (const n of ["bwoc_list", "bwoc_sendMessage", "bwoc_broadcast", "bwoc_outboxFlush"]) {
+      expect(localOnly(n), n).not.toBe(true);
+    }
+  });
+});

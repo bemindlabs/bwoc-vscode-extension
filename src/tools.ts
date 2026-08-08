@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 
 import {
   BwocCliError,
+  BwocdBackend,
   BwocdError,
   type BwocClient,
   type CheckReport,
@@ -110,6 +111,10 @@ export interface ToolSpec {
   confirm?: (input: Record<string, unknown>) => { title: string; message: string };
   /** Progress line shown while running (optional). */
   progress?: (input: Record<string, unknown>) => string;
+  /** Only works against a local workspace — the bwocd remote backend refuses it
+   *  (agent-daemon lifecycle / host diagnostics). Over a remote host the tool
+   *  short-circuits with a clear message instead of a scary confirm-then-error. */
+  localOnly?: boolean;
 }
 
 const str = (input: Record<string, unknown>, key: string): string =>
@@ -291,6 +296,24 @@ export const TOOL_SPECS: ToolSpec[] = [
   },
 ];
 
+// Agent-daemon lifecycle + host diagnostics: the bwocd remote backend refuses
+// these (they mutate the daemon / probe the host), so mark them local-only for
+// the remote short-circuit below.
+for (const s of TOOL_SPECS) {
+  if (
+    [
+      "bwoc_startAgent",
+      "bwoc_stopAgent",
+      "bwoc_newAgent",
+      "bwoc_retireAgent",
+      "bwoc_doctor",
+      "bwoc_checkAgent",
+    ].includes(s.name)
+  ) {
+    s.localOnly = true;
+  }
+}
+
 // ── Registration (vscode-coupled glue) ───────────────────────────────────────
 
 /** Register every BWOC tool with the editor's Language Model Tools API so
@@ -306,9 +329,24 @@ export function registerBwocTools(
   if (typeof lm.registerTool !== "function") {
     return;
   }
+  // A local-only tool is unavailable when the active host is a remote bwocd.
+  const remoteBlocks = (spec: ToolSpec) =>
+    !!spec.localOnly && getClient() instanceof BwocdBackend;
+  const remoteMsg = (spec: ToolSpec) =>
+    `⚠️ ${spec.name.replace(/^bwoc_/, "")} isn't available over a remote bwocd host ` +
+    `(agent-daemon lifecycle / host diagnostics are local-CLI only). Switch to the ` +
+    `Local CLI host, or run it on the host.`;
+
   for (const spec of TOOL_SPECS) {
     const tool: vscode.LanguageModelTool<Record<string, unknown>> = {
       async invoke(options) {
+        // Short-circuit local-only tools on a remote host — a clear message,
+        // not a confirm-then-localOnly-error.
+        if (remoteBlocks(spec)) {
+          return new vscode.LanguageModelToolResult([
+            new vscode.LanguageModelTextPart(remoteMsg(spec)),
+          ]);
+        }
         const input = (options.input ?? {}) as Record<string, unknown>;
         try {
           const text = await spec.run(getClient(), input);
@@ -320,6 +358,10 @@ export function registerBwocTools(
         }
       },
       prepareInvocation(options) {
+        // No scary confirmation for a tool that can't run on this host.
+        if (remoteBlocks(spec)) {
+          return { invocationMessage: remoteMsg(spec) };
+        }
         const input = (options.input ?? {}) as Record<string, unknown>;
         const confirmationMessages = spec.confirm?.(input);
         const invocationMessage = spec.progress?.(input);

@@ -70,12 +70,13 @@ export class TeamsProvider implements vscode.TreeDataProvider<TeamNode> {
       }
       return [];
     } catch (err) {
-      // Remote (bwocd) has no team/task routes; keep the tree quiet rather than
-      // erroring on every expand.
-      if (!(err instanceof BwocdError)) {
-        const msg = err instanceof BwocCliError ? err.message : String(err);
-        vscode.window.showErrorMessage(`BWOC: ${msg}`);
-      }
+      // bwocd now proxies `team list` / `task list` via /cli, so surface real
+      // failures instead of a silent empty tree — consistent with the Fleet view.
+      const msg =
+        err instanceof BwocCliError || err instanceof BwocdError
+          ? err.message
+          : String(err);
+      vscode.window.showErrorMessage(`BWOC: ${msg}`);
       return [];
     }
   }
