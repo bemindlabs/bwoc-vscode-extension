@@ -4,7 +4,18 @@
   "title": "BWOC agent manifest",
   "description": "config.manifest.json for an incarnated BWOC agent. Camel-cased fields mirror bwoc-core's Manifest. Editor assistance only — `bwoc check` remains the source of truth for backend-neutrality and completeness.",
   "type": "object",
-  "required": ["agentId", "name", "primaryModel"],
+  "required": [
+    "agentId",
+    "name",
+    "primaryModel",
+    "agentRole",
+    "memoryPath",
+    "version",
+    "lintCmd",
+    "formatCmd",
+    "testCmd",
+    "buildCmd"
+  ],
   "additionalProperties": true,
   "properties": {
     "name": {
@@ -142,6 +153,22 @@
         "signingPublicKey": {
           "type": "string",
           "description": "ed25519 public key (hex). Written by `bwoc trust --keygen`; the private key stays in .bwoc/agent.key."
+        }
+      }
+    },
+    "skills": {
+      "type": "object",
+      "description": "Enabled skills grouped by source (e.g. \"framework\"). Each source maps to a list of skill entries.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "name": { "type": "string", "description": "Skill name." },
+            "version": { "type": "string", "description": "SemVer range, e.g. \">=0.1.0\"." },
+            "enabled": { "type": "boolean", "description": "Whether the skill is active." }
+          }
         }
       }
     }

@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.9.6] — 2026-08-08
+
+### Fixed
+
+- **Manifest schema now matches what `bwoc check` requires.** The `config.manifest.json` schema only required `agentId`/`name`/`primaryModel`, so the editor green-lit manifests the CLI rejects. It now also requires `agentRole`, `memoryPath`, `version`, and the four verification-gate commands (`lintCmd`/`formatCmd`/`testCmd`/`buildCmd`) — all present in every real incarnated manifest — and models the top-level `skills` block (source → list of `{name,version,enabled}`) for autocomplete. `additionalProperties` stays open so extra sections don't false-flag.
+
 ## [0.9.5] — 2026-08-08
 
 ### Added
