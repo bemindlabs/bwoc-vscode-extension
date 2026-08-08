@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.9.4] — 2026-08-08
+
+### Fixed
+
+- **Teams & Memory views no longer swallow remote errors.** bwocd now proxies `team list` / `task list` / `memory list` via `/cli`, but the views still discarded every `BwocdError` on the stale "no remote route" rationale — a 401 / timeout / malformed response rendered as a blank panel. They now surface the error like the Fleet view.
+- **Local-only LM tools short-circuit on a remote host instead of confirm-then-error.** The daemon-lifecycle + host-diagnostic tools (`#bwocStartAgent`, `StopAgent`, `NewAgent`, `RetireAgent`, `Doctor`, `CheckAgent`) can't run over a remote `bwocd`. They now return a clear "switch to Local CLI" message with **no** scary confirmation, rather than prompting (e.g. retire's "cannot be undone") and then failing.
+
 ## [0.9.3] — 2026-08-08
 
 ### Fixed

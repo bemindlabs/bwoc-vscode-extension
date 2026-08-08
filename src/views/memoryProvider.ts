@@ -38,11 +38,14 @@ export class MemoryProvider implements vscode.TreeDataProvider<MemoryEntry> {
     try {
       return await this.client.memories();
     } catch (err) {
-      // Remote (bwocd) has no memory route; stay quiet rather than error.
-      if (!(err instanceof BwocdError)) {
-        const msg = err instanceof BwocCliError ? err.message : String(err);
-        vscode.window.showErrorMessage(`BWOC: ${msg}`);
-      }
+      // bwocd now proxies `memory list` via /cli, so surface real failures
+      // (401/timeout/malformed) instead of rendering a silent blank panel —
+      // consistent with the Fleet view.
+      const msg =
+        err instanceof BwocCliError || err instanceof BwocdError
+          ? err.message
+          : String(err);
+      vscode.window.showErrorMessage(`BWOC: ${msg}`);
       return [];
     }
   }
