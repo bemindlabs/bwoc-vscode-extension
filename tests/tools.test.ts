@@ -55,7 +55,7 @@ describe("formatters", () => {
 
   it("formatMemoryList / formatInbox — empty and populated", () => {
     expect(formatMemoryList([])).toBe("No workspace memory entries.");
-    const mem: MemoryEntry[] = [{ name: "prefs", sizeBytes: 12 }];
+    const mem: MemoryEntry[] = [{ name: "prefs", sizeBytes: 12, path: "/ws/.bwoc/memory/prefs" }];
     expect(formatMemoryList(mem)).toContain("**prefs** `12B`");
 
     expect(formatInbox("agent-x", [])).toBe("**agent-x** inbox is empty.");

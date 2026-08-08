@@ -111,11 +111,16 @@ export function parseTasks(stdout: string): Task[] {
 
 export function parseMemories(stdout: string): MemoryEntry[] {
   const doc = JSON.parse(stdout) as {
+    workspace_memory_dir?: string;
     entries?: Array<{ name: string; size_bytes?: number }>;
   };
+  const dir = doc.workspace_memory_dir ?? "";
   return (doc.entries ?? []).map((e) => ({
     name: e.name,
     sizeBytes: e.size_bytes ?? 0,
+    // Join without node:path so the pure parser stays dependency-free; the CLI
+    // dir is absolute and callers normalize via Uri.file. Empty dir → empty path.
+    path: dir ? `${dir.replace(/\/+$/, "")}/${e.name}` : "",
   }));
 }
 

@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-08-08
+
+### Fixed
+
+- **Memory entries now open the real file, not an untitled copy.** Clicking an entry in the **Memory** view opened a fresh unsaved document built from the CLI's output, so edits didn't save back. `bwoc memory list --json` reports `workspace_memory_dir`, so each entry now carries its absolute `path`; `bwoc.openMemory` opens that file with `vscode.open` (like the Agent Profiles slots) — edits save to disk. Falls back to the read-only content view only when the file isn't local (a remote `bwocd` host).
+
 ## [0.9.0] — 2026-08-08
 
 ### Added
