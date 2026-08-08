@@ -19,7 +19,9 @@ export function formatAgentList(agents: AgentSummary[]): string {
     return "No agents in this workspace.";
   }
   const rows = agents.map((a) => {
-    const state = a.running ? "🟢 running" : `⚪ ${a.status}`;
+    // Real liveness, not the registry lifecycle status (an unstarted agent is
+    // registry-"active" but offline — calling that "active" reads as online).
+    const state = a.running ? "🟢 running" : "⚪ offline";
     const inbox = a.inboxCount > 0 ? ` · inbox ${a.inboxCount}` : "";
     return `- **${a.id}** — ${state}${inbox} \`(${a.backend})\``;
   });
@@ -28,7 +30,7 @@ export function formatAgentList(agents: AgentSummary[]): string {
 
 export function formatAgentStatus(d: AgentDetail): string {
   return [
-    `**${d.id}** — ${d.running ? "🟢 running" : `⚪ ${d.status}`} · health \`${d.health}\``,
+    `**${d.id}** — ${d.running ? "🟢 running" : "⚪ offline"} · health \`${d.health}\``,
     "",
     `- backend: \`${d.backend}\``,
     `- model: \`${d.primaryModel}\``,

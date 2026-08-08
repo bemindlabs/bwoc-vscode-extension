@@ -38,9 +38,24 @@ export class FleetProvider implements vscode.TreeDataProvider<FleetNode> {
       a.id,
       vscode.TreeItemCollapsibleState.Collapsed,
     );
-    item.description = `${a.running ? "running" : a.status}${
+    // Show real liveness (pid probe via `bwoc list`), not the registry lifecycle
+    // status: an unstarted agent is "active" in the registry but NOT running, and
+    // labeling that "active" reads as online. "offline" is the honest word; the
+    // registry status lives in the tooltip.
+    item.description = `${a.running ? "running" : "offline"}${
       a.inboxCount > 0 ? ` · inbox ${a.inboxCount}` : ""
     }`;
+    item.tooltip = new vscode.MarkdownString(
+      [
+        `**${a.id}** — ${a.running ? "🟢 running" : "⚪ offline (daemon not started)"}`,
+        `- backend: \`${a.backend}\``,
+        `- registry status: \`${a.status}\``,
+        `- inbox: ${a.inboxCount}`,
+        a.running ? "" : "- start it: **BWOC: Start Agent Daemon**",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
     item.contextValue = "bwocAgent";
     item.iconPath = new vscode.ThemeIcon(
       a.running ? "circle-filled" : "circle-outline",

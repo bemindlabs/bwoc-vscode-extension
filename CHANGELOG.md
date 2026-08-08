@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.9.2] — 2026-08-08
+
+### Fixed
+
+- **Fleet view showed the wrong state — every agent read "active" even when nothing was running.** The row printed the registry *lifecycle* status (`active`) whenever the agent wasn't running, which reads as "online". It now shows real liveness from `bwoc list`'s pid probe: **`running`** or **`offline`** (the registry status + backend + a "start it" hint moved to the row tooltip). Same honest label in the `@bwoc` chat participant (`⚪ offline`, not `⚪ active`).
+
 ## [0.9.1] — 2026-08-08
 
 ### Fixed
