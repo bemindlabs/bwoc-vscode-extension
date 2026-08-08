@@ -1,7 +1,7 @@
 {
   "name": "bwoc-vscode-extension",
   "displayName": "BWOC Fleet",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "description": "Operate your BWOC agent fleet from VS Code — a native control surface over the bwoc CLI, with Copilot agent-mode tools to read and drive the whole fleet.",
   "publisher": "bemindlabs",
@@ -339,6 +339,12 @@
       {
         "id": "bwoc.mcp",
         "label": "BWOC Fleet (bwoc-mcp)"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": ["**/agents/**/config.manifest.json"],
+        "url": "./schemas/config.manifest.schema.json"
       }
     ],
     "languageModelTools": [
