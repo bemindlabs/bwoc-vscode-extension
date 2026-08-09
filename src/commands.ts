@@ -473,13 +473,109 @@ export function registerCommands(
     }
   };
 
+  const broadcast = async () => {
+    const client = getClient();
+    // Scope: the whole workspace (--all) or one team (--team). The team list is
+    // the same one the Teams view shows.
+    let team: string | undefined;
+    try {
+      const teams = await client.teams();
+      const scope = await vscode.window.showQuickPick(
+        [
+          {
+            label: "$(broadcast) Whole workspace",
+            description: "every agent (--all)",
+            team: undefined as string | undefined,
+          },
+          ...teams.map((t) => ({
+            label: `$(organization) ${t.name}`,
+            description: "team members (--team)",
+            team: t.name as string | undefined,
+          })),
+        ],
+        { placeHolder: "Broadcast to…" },
+      );
+      if (!scope) {
+        return;
+      }
+      team = scope.team;
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+      return;
+    }
+    const message = await vscode.window.showInputBox({
+      prompt: team ? `Broadcast to team ${team}` : "Broadcast to every agent",
+      placeHolder: "Type the message to broadcast to the fleet…",
+      validateInput: (v) => (v.trim().length === 0 ? "Message cannot be empty" : undefined),
+    });
+    if (message === undefined || message.trim().length === 0) {
+      return;
+    }
+    // Broadcast is high-blast-radius — confirm before fanning out.
+    const target = team ? `team ${team}` : "every agent in the workspace";
+    const ok = await vscode.window.showWarningMessage(
+      `Broadcast this message to ${target}?`,
+      { modal: true },
+      "Broadcast",
+    );
+    if (ok !== "Broadcast") {
+      return;
+    }
+    try {
+      const confirmation = await client.broadcast(message, team);
+      output.appendLine(`[broadcast → ${target}] ${confirmation}`);
+      vscode.window.showInformationMessage(`BWOC: broadcast to ${target}.`);
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
+  const outboxFlush = async (arg?: unknown) => {
+    const client = getClient();
+    // A context-menu invocation on a Fleet node preselects that peer; otherwise
+    // pick all peers or one specific agent's spool.
+    const preset = agentIdFrom(arg);
+    let peer: string | undefined = preset;
+    if (!preset) {
+      const scope = await vscode.window.showQuickPick(
+        [
+          {
+            label: "$(sync) All peers",
+            description: "retry every spooled message",
+            peer: "" as string,
+          },
+          { label: "$(person) A specific peer…", description: "pick one agent", peer: "__pick__" },
+        ],
+        { placeHolder: "Flush the outbox for…" },
+      );
+      if (!scope) {
+        return;
+      }
+      if (scope.peer === "__pick__") {
+        peer = await pickAgent(client, "Flush which peer's spool?");
+        if (!peer) {
+          return;
+        }
+      }
+    }
+    try {
+      const confirmation = await client.outboxFlush(peer || undefined);
+      output.appendLine(`[outbox flush${peer ? ` → ${peer}` : ""}] ${confirmation}`);
+      vscode.window.showInformationMessage(`BWOC: outbox flushed${peer ? ` for ${peer}` : ""}.`);
+    } catch (err) {
+      vscode.window.showErrorMessage(`BWOC: ${errText(err)}`);
+    }
+  };
+
   const commandPalette = async () => {
     const pick = await vscode.window.showQuickPick(
       [
         { label: "$(comment-discussion) Chat with an agent", cmd: "bwoc.openChat" },
         { label: "$(play) Run a task on an agent", cmd: "bwoc.runTask" },
         { label: "$(comment) Send message to an agent", cmd: "bwoc.sendMessage" },
+        { label: "$(broadcast) Broadcast to the fleet or a team", cmd: "bwoc.broadcast" },
         { label: "$(mail) View an agent's inbox", cmd: "bwoc.viewInbox" },
+        { label: "$(sync) Flush the outbox (retry spooled)", cmd: "bwoc.outboxFlush" },
         { label: "$(debug-start) Start an agent's daemon", cmd: "bwoc.startAgent" },
         { label: "$(debug-stop) Stop an agent's daemon", cmd: "bwoc.stopAgent" },
         { label: "$(add) Add a task to a team", cmd: "bwoc.taskAdd" },
@@ -500,6 +596,8 @@ export function registerCommands(
 
   context.subscriptions.push(
     vscode.commands.registerCommand("bwoc.sendMessage", sendMessage),
+    vscode.commands.registerCommand("bwoc.broadcast", broadcast),
+    vscode.commands.registerCommand("bwoc.outboxFlush", outboxFlush),
     vscode.commands.registerCommand("bwoc.openChat", openChat),
     vscode.commands.registerCommand("bwoc.runTask", runTask),
     vscode.commands.registerCommand("bwoc.enrollController", enrollController),

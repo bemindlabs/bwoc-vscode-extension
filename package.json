@@ -91,6 +91,16 @@
         "icon": "$(comment)"
       },
       {
+        "command": "bwoc.broadcast",
+        "title": "BWOC: Broadcast to Fleet or Team",
+        "icon": "$(broadcast)"
+      },
+      {
+        "command": "bwoc.outboxFlush",
+        "title": "BWOC: Flush Outbox (Retry Spooled)",
+        "icon": "$(sync)"
+      },
+      {
         "command": "bwoc.openChat",
         "title": "BWOC: Chat with Agent",
         "icon": "$(comment-discussion)"
