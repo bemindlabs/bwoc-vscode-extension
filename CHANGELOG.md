@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **BWOC: Doctor shows its report when something fails.** In bwoc 3.x `bwoc doctor --json` exits `3` when a check FAILs while still printing the full report; the extension treated any non-zero exit as an error, so it showed "failed" instead of *which* check failed — exactly when the report matters.
+- **A failed `run` keeps its output and exit code.** `bwoc run --json` exits `1` when the agent fails, with the result (`exit_code`, `output`) on stdout; that was thrown away too, so the "exit N" line never showed a failure.
+
 ## [0.9.6] — 2026-08-08
 
 ### Fixed

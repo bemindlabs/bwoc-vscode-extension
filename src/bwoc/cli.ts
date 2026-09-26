@@ -234,7 +234,7 @@ export class CliBackend implements BwocClient {
     // Tasks are long-running, so use a generous 15-minute host timeout on top of
     // whatever `bwoc run --timeout` the fleet enforces.
     return parseRunResult(
-      await this.exec(["run", "--task", task, agentId, "--json"], 15 * 60 * 1000),
+      await this.execTolerant(["run", "--task", task, agentId, "--json"], 15 * 60 * 1000),
     );
   }
 
@@ -290,18 +290,20 @@ export class CliBackend implements BwocClient {
   }
 
   async doctor(): Promise<DoctorReport> {
-    return parseDoctor(await this.exec(["doctor", "--json"]));
+    return parseDoctor(await this.execTolerant(["doctor", "--json"]));
   }
 
   /** Like `exec`, but returns stdout even on a non-zero exit (only a spawn
-   *  failure throws). `bwoc check` exits non-zero when there are violations, yet
-   *  still emits its JSON report on stdout. */
-  private async execTolerant(args: string[]): Promise<string> {
+   *  failure throws). bwoc reports a negative-but-valid result with a JSON
+   *  report *and* a non-zero exit — `check` / `doctor` exit 3 on violations or
+   *  FAILs (bwoc 3.x exit contract), `run` exits 1 when the agent failed — so a
+   *  caller that wants the report must not treat the exit as an error. */
+  private async execTolerant(args: string[], timeoutMs = 15_000): Promise<string> {
     const full = this.opts.workspace ? [...args, "--workspace", this.opts.workspace] : args;
     try {
       const { stdout } = await execFileAsync(this.opts.binaryPath, full, {
         maxBuffer: 16 * 1024 * 1024,
-        timeout: 15_000,
+        timeout: timeoutMs,
         // See exec(): resolve positional-path verbs (`bwoc check <path>`) against
         // the workspace, not VS Code's cwd.
         cwd: this.opts.workspace || undefined,
