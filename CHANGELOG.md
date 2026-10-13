@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.9.7] — 2026-10-14
+
 ### Fixed
 
 - **BWOC: Doctor shows its report when something fails.** In bwoc 3.x `bwoc doctor --json` exits `3` when a check FAILs while still printing the full report; the extension treated any non-zero exit as an error, so it showed "failed" instead of *which* check failed — exactly when the report matters.
