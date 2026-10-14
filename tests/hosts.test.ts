@@ -34,6 +34,21 @@ describe("foldHosts", () => {
     ]);
   });
 
+  it("de-duplicates repeated urls within hosts (first entry wins, whitespace ignored)", () => {
+    const out = foldHosts(
+      [
+        { name: "A", url: "http://a:1" },
+        { name: "A again", url: "  http://a:1 " },
+        { url: "http://b:2" },
+      ],
+      "",
+    );
+    expect(out).toEqual([
+      { name: "A", url: "http://a:1" },
+      { name: "http://b:2", url: "http://b:2" },
+    ]);
+  });
+
   it("does not duplicate a legacy url already in the list", () => {
     const out = foldHosts([{ name: "B", url: "http://b:2" }], "http://b:2");
     expect(out).toEqual([{ name: "B", url: "http://b:2" }]);

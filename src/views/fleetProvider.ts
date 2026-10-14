@@ -47,7 +47,7 @@ export class FleetProvider implements vscode.TreeDataProvider<FleetNode> {
     }`;
     item.tooltip = new vscode.MarkdownString(
       [
-        `**${a.id}** — ${a.running ? "🟢 running" : "⚪ offline (daemon not started)"}`,
+        `**${a.id}** — ${a.running ? "🟢 running" : "⚪ not running"}`,
         `- backend: \`${a.backend}\``,
         `- registry status: \`${a.status}\``,
         `- inbox: ${a.inboxCount}`,

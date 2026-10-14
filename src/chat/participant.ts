@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 
-import { BwocCliError, type AgentDetail, type AgentSummary, type BwocClient } from "../bwoc";
-import { BwocdError } from "../bwoc";
+import { BwocCliError, BwocdError, type AgentDetail, type AgentSummary, type BwocClient } from "../bwoc";
 
 const PARTICIPANT_ID = "bwoc.fleet";
 
@@ -44,7 +43,8 @@ export function formatAgentStatus(d: AgentDetail): string {
 
 // ── Registration ─────────────────────────────────────────────────────────────
 
-/** Register the `@bwoc` chat participant so Copilot Chat can query the fleet. */
+/** Register the `@bwoc` chat participant so Copilot Chat can query the fleet.
+ *  No-ops on editors without the chat participant API. */
 export function registerChatParticipant(
   context: vscode.ExtensionContext,
   getClient: () => BwocClient,
@@ -82,7 +82,11 @@ export function registerChatParticipant(
     }
   };
 
-  const participant = vscode.chat.createChatParticipant(PARTICIPANT_ID, handler);
+  const chat = vscode.chat as typeof vscode.chat | undefined;
+  if (typeof chat?.createChatParticipant !== "function") {
+    return;
+  }
+  const participant = chat.createChatParticipant(PARTICIPANT_ID, handler);
   participant.iconPath = new vscode.ThemeIcon("rocket");
   context.subscriptions.push(participant);
 }

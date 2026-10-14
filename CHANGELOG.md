@@ -6,6 +6,18 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Controller identity stays consistent.** A lost settings entry no longer rotates the key held in SecretStorage, and a freshly generated key always gets a fresh controller id instead of reusing an id bwocd has enrolled under the old key.
+- **Malformed bwocd answers are reported, not passed off as success.** Invalid JSON or an empty body is now a clear error (it used to crash with a `TypeError` or `SyntaxError`). A `/whoami` with no controller id, a `/cli` result with no `exit_code`/`stdout`, and a run envelope with no `exit_code` are errors too, instead of "connected as (blank)" or "exit 0". Unknown future capabilities are kept.
+- **A failed `bwoc run` can't read as a clean exit.** A `run --json` envelope without `agent`/`exit_code` is now an error. Doctor/check/run accept a non-zero exit only when bwoc actually printed a JSON report, so a timeout or usage text no longer turns into a confusing parse error. A missing `bwoc.workspace` directory is now named as such instead of being reported as "bwoc not found".
+- **Chat is more robust.** The last line of output and the final stderr line are no longer lost when the harness exits. Long stderr lines are no longer split into pieces. A write that races the harness exiting is reported in the chat instead of crashing the extension. The mode dropdown follows mode changes reported by the harness. `bwoc-harness` resolves next to a `bwoc.binaryPath` written with `/` on Windows or ending in `.exe`.
+- **Agent directories must be inside the workspace.** Chat and the Agent Profiles view ignore an agent path that is empty, absolute or contains `..`.
+- **Remote memory entries never open a local file.** On a bwocd host a memory entry's path is a remote path; it is no longer opened as a local file, even if a file with that path exists locally.
+- **Copilot tools refuse blank required inputs.** Copilot tools no longer send a blank message, broadcast, task or task title.
+- **No activation crash on editors without the chat/LM APIs.** The `@bwoc` participant, LM tools and MCP provider are skipped when the editor lacks those APIs.
+- Duplicate URLs in `bwoc.remote.hosts` show once in the host switcher. Inbox notifications start from a fresh baseline after a restart. The 401/403 hint and the status-bar tooltip now name the exact command and settings to check. Smaller wording fixes.
+
 ## [0.9.7] — 2026-10-14
 
 ### Fixed

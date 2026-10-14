@@ -40,3 +40,28 @@ describe.skipIf(process.platform === "win32")("reports that come with a non-zero
     await expect(cli.doctor()).rejects.toThrow(/bwoc doctor --json failed/);
   });
 });
+
+describe.skipIf(process.platform === "win32")("what execTolerant must NOT treat as a report", () => {
+  it("a non-zero exit with non-JSON stdout (usage text) is a CLI error, not a parse error", async () => {
+    const cli = new CliBackend({ binaryPath: fakeBwoc("Usage: bwoc doctor [OPTIONS]", 2), workspace: "" });
+    await expect(cli.doctor()).rejects.toThrow(/bwoc doctor --json failed/);
+  });
+
+  it("a timeout kill is an error even when partial JSON-looking stdout was printed", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "bwoc-fake-"));
+    const bin = join(dir, "bwoc");
+    writeFileSync(bin, `#!/bin/sh\necho '{"agent":"a","exit_code":0}'\nexec sleep 5\n`);
+    chmodSync(bin, 0o755);
+    const cli = new CliBackend({ binaryPath: bin, workspace: "" });
+    // Reach the private tolerant exec with a short timeout to force the kill.
+    const execTolerant = (cli as unknown as {
+      execTolerant: (a: string[], t: number) => Promise<string>;
+    }).execTolerant.bind(cli);
+    await expect(execTolerant(["run"], 200)).rejects.toThrow(/failed/);
+  });
+
+  it("names a missing workspace instead of blaming the bwoc binary", async () => {
+    const cli = new CliBackend({ binaryPath: fakeBwoc("{}", 0), workspace: "/nonexistent/bwoc-ws" });
+    await expect(cli.list()).rejects.toThrow(/workspace "\/nonexistent\/bwoc-ws" does not exist/);
+  });
+});

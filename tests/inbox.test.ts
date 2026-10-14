@@ -40,6 +40,18 @@ describe("diffInbox", () => {
   });
 });
 
+describe("InboxWatcher restart", () => {
+  it("drops the previous snapshot on start(), so a failed priming tick can't diff against stale counts", async () => {
+    const client = { list: vi.fn(async () => [agent("a", 3)]) } as unknown as BwocClient;
+    const watcher = new InboxWatcher(() => client);
+    const priv = watcher as unknown as { tick: (p: boolean) => Promise<void>; snapshot: Map<string, number> };
+    await priv.tick.call(watcher, true);
+    expect(priv.snapshot.get("a")).toBe(3);
+    watcher.start(0); // restart (here: disabled) — must reset the baseline
+    expect(priv.snapshot.size).toBe(0);
+  });
+});
+
 describe("InboxWatcher in-flight guard (B6)", () => {
   it("skips a tick while a previous poll is still running", async () => {
     // A poll slower than pollSeconds must not stack overlapping ticks.

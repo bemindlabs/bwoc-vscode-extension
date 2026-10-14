@@ -57,4 +57,14 @@ describe("parseMemories", () => {
       { name: "x", sizeBytes: 0, path: "" },
     ]);
   });
+  it("gives no path to names that could escape the memory dir", async () => {
+    const { parseMemories } = await import("../src/bwoc/cli");
+    const out = parseMemories(
+      JSON.stringify({
+        workspace_memory_dir: "/ws/.bwoc/memory/",
+        entries: [{ name: "../secret" }, { name: "a/b.md" }, { name: "a\\b.md" }, { name: ".." }, { name: "ok.md" }],
+      }),
+    );
+    expect(out.map((e) => e.path)).toEqual(["", "", "", "", "/ws/.bwoc/memory/ok.md"]);
+  });
 });

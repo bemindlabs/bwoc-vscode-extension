@@ -20,7 +20,7 @@
   "properties": {
     "name": {
       "type": "string",
-      "description": "Agent name (kebab-case). agentId is derived as agent-<name>."
+      "description": "Agent name — by convention kebab-case, with agentId set to agent-<name>."
     },
     "agentId": {
       "type": "string",
@@ -143,7 +143,7 @@
         "requiredTrust": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Qualities a sender must declare to be accepted. Empty → refusal mode Off."
+          "description": "Qualities a sender must declare to be accepted. Empty → refusal mode `off`."
         },
         "mode": {
           "type": "string",

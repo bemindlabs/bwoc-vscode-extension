@@ -39,6 +39,13 @@ export function parseEventLine(line: string): ChatEvent | null {
   }
 }
 
+/** Minimal runtime guard for a webview → extension message: an object with a
+ *  string `type`. The harness ignores unknown variants, so this only keeps
+ *  non-objects and untyped junk off the protocol. */
+export function isChatInput(v: unknown): v is ChatInput {
+  return typeof v === "object" && v !== null && typeof (v as { type?: unknown }).type === "string";
+}
+
 /** Serialize a ChatInput to a single newline-terminated stdin line. */
 export function inputLine(input: ChatInput): string {
   return `${JSON.stringify(input)}\n`;

@@ -1,6 +1,5 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
-import * as path from "node:path";
 
 import { type ChatEvent, type ChatInput, inputLine, parseEventLine } from "./proto";
 
@@ -27,10 +26,11 @@ export interface ChatConfig {
  *  `bwoc` (same dir, or on PATH when `bwoc` is bare). Pure + unit-tested. */
 export function buildChatSpawn(cfg: ChatConfig): ChatSpawn {
   const bin = cfg.bwocBinaryPath || "bwoc";
-  const command =
-    bin === "bwoc" || !bin.includes(path.sep)
-      ? "bwoc-harness"
-      : path.join(path.dirname(bin), "bwoc-harness");
+  // Either separator counts as a path (Windows accepts both); keep a Windows
+  // `.exe` so `…\bwoc.exe` resolves `…\bwoc-harness.exe`.
+  const dir = bin.slice(0, Math.max(bin.lastIndexOf("/"), bin.lastIndexOf("\\")) + 1);
+  const ext = /\.exe$/i.test(bin) ? bin.slice(-4) : "";
+  const command = `${dir}bwoc-harness${ext}`;
   const args = ["--chat", "--backend", cfg.backend, "--model", cfg.model];
   // B3 mitigation: the harness --chat path validates the raw model string and
   // does NOT resolve "auto" the way the batch path does, so an auto-model agent
@@ -51,6 +51,7 @@ export function buildChatSpawn(cfg: ChatConfig): ChatSpawn {
 export class ChatSession {
   private child?: ChildProcessWithoutNullStreams;
   private stdoutBuf = "";
+  private stderrBuf = "";
   private readonly emitter = new EventEmitter();
 
   constructor(private readonly spawnSpec: ChatSpawn) {}
@@ -81,13 +82,7 @@ export class ChatSession {
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (d: string) => this.ingest(d));
     child.stderr.setEncoding("utf8");
-    child.stderr.on("data", (d: string) => {
-      for (const line of d.split("\n")) {
-        if (line.trim()) {
-          this.emitter.emit("stderr", line);
-        }
-      }
-    });
+    child.stderr.on("data", (d: string) => this.ingestStderr(d));
     // Swallow stdin stream errors (e.g. EPIPE when the child exits mid-write):
     // an unhandled 'error' on stdin would crash the extension host. send() and
     // dispose() are already guarded, but a write racing the exit lands here.
@@ -98,11 +93,16 @@ export class ChatSession {
         message: `${command} error: ${e.message}`,
       } satisfies ChatEvent),
     );
-    child.on("exit", (code) => {
-      // Flush any trailing non-newline stdout line so a final event isn't lost,
-      // then drop the handle so send()/dispose() never write to closed stdin.
+    child.on("exit", () => {
+      // Drop the handle at once so send()/dispose() never write to closed stdin.
+      if (this.child === child) {
+        this.child = undefined;
+      }
+    });
+    child.on("close", (code) => {
+      // Streams are only guaranteed drained on "close" (not "exit"): flush any
+      // trailing non-newline output first so a final event isn't lost.
       this.flushTail();
-      this.child = undefined;
       this.emitter.emit("exit", code);
     });
   }
@@ -121,7 +121,24 @@ export class ChatSession {
     }
   }
 
-  /** Emit any buffered, non-newline-terminated final line (called on exit). */
+  /** Line-buffer stderr the same way, so a long line split across chunks is
+   *  emitted once, whole. */
+  private ingestStderr(chunk: string): void {
+    this.stderrBuf += chunk;
+    let nl: number;
+    while ((nl = this.stderrBuf.indexOf("\n")) !== -1) {
+      this.emitStderr(this.stderrBuf.slice(0, nl));
+      this.stderrBuf = this.stderrBuf.slice(nl + 1);
+    }
+  }
+
+  private emitStderr(line: string): void {
+    if (line.trim()) {
+      this.emitter.emit("stderr", line);
+    }
+  }
+
+  /** Emit any buffered, non-newline-terminated final lines (called on close). */
   private flushTail(): void {
     const line = this.stdoutBuf;
     this.stdoutBuf = "";
@@ -131,18 +148,33 @@ export class ChatSession {
         this.emitter.emit("event", ev);
       }
     }
+    const err = this.stderrBuf;
+    this.stderrBuf = "";
+    this.emitStderr(err);
   }
 
   /** True while the child is live and its stdin is safe to write. */
   private isWritable(): boolean {
-    return !!this.child && this.child.exitCode === null && !this.child.killed;
+    const c = this.child;
+    return (
+      !!c && c.exitCode === null && !c.killed && c.stdin.writable && !c.stdin.destroyed
+    );
   }
 
   send(input: ChatInput): void {
     if (!this.isWritable()) {
       return; // child has exited — writing would raise EPIPE.
     }
-    this.child?.stdin.write(inputLine(input));
+    try {
+      this.child?.stdin.write(inputLine(input));
+    } catch (e) {
+      // A write racing the child's exit can still throw synchronously; report
+      // it in the chat instead of crashing the extension host.
+      this.emitter.emit("event", {
+        type: "error",
+        message: `could not send to the chat process: ${(e as Error).message}`,
+      } satisfies ChatEvent);
+    }
   }
 
   dispose(): void {

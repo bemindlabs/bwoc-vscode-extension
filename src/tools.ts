@@ -120,6 +120,16 @@ export interface ToolSpec {
 const str = (input: Record<string, unknown>, key: string): string =>
   typeof input[key] === "string" ? (input[key] as string).trim() : "";
 
+/** A required string input: trimmed, and rejected when blank so a write tool
+ *  never sends an empty message/task (the palette commands refuse those too). */
+const req = (input: Record<string, unknown>, key: string): string => {
+  const v = str(input, key);
+  if (!v) {
+    throw new Error(`"${key}" is required and cannot be empty.`);
+  }
+  return v;
+};
+
 const optStr = (input: Record<string, unknown>, key: string): string | undefined => {
   const v = str(input, key);
   return v.length > 0 ? v : undefined;
@@ -176,7 +186,7 @@ export const TOOL_SPECS: ToolSpec[] = [
   // ── Write / control (confirmed) ──
   {
     name: "bwoc_sendMessage",
-    run: async (c, i) => (await c.send(str(i, "to"), str(i, "message"))) || "sent",
+    run: async (c, i) => (await c.send(req(i, "to"), req(i, "message"))) || "sent",
     confirm: (i) => ({
       title: "Send message",
       message: `Send a message to **${str(i, "to")}**?`,
@@ -185,7 +195,7 @@ export const TOOL_SPECS: ToolSpec[] = [
   },
   {
     name: "bwoc_broadcast",
-    run: async (c, i) => c.broadcast(str(i, "message"), optStr(i, "team")),
+    run: async (c, i) => c.broadcast(req(i, "message"), optStr(i, "team")),
     confirm: (i) => {
       const team = optStr(i, "team");
       return {
@@ -199,7 +209,7 @@ export const TOOL_SPECS: ToolSpec[] = [
   },
   {
     name: "bwoc_runTask",
-    run: async (c, i) => formatRun(await c.run(str(i, "agentId"), str(i, "task"))),
+    run: async (c, i) => formatRun(await c.run(req(i, "agentId"), req(i, "task"))),
     confirm: (i) => ({
       title: "Run task",
       message: `Run a task on **${str(i, "agentId")}** (headless, one turn)?`,
@@ -209,8 +219,8 @@ export const TOOL_SPECS: ToolSpec[] = [
   {
     name: "bwoc_taskAdd",
     run: async (c, i) => {
-      const team = str(i, "team");
-      await c.taskAdd(team, str(i, "title"));
+      const team = req(i, "team");
+      await c.taskAdd(team, req(i, "title"));
       return `Added task to team **${team}**.`;
     },
     confirm: (i) => ({
@@ -323,15 +333,14 @@ export function registerBwocTools(
   context: vscode.ExtensionContext,
   getClient: () => BwocClient,
 ): void {
-  const lm = vscode.lm as typeof vscode.lm & {
-    registerTool?: typeof vscode.lm.registerTool;
-  };
-  if (typeof lm.registerTool !== "function") {
+  // `vscode.lm` itself can be missing on editors/forks without the LM API.
+  const lm = vscode.lm as (typeof vscode.lm & { registerTool?: typeof vscode.lm.registerTool }) | undefined;
+  if (!lm || typeof lm.registerTool !== "function") {
     return;
   }
   // A local-only tool is unavailable when the active host is a remote bwocd.
-  const remoteBlocks = (spec: ToolSpec) =>
-    !!spec.localOnly && getClient() instanceof BwocdBackend;
+  const remoteBlocks = (spec: ToolSpec, client: BwocClient) =>
+    !!spec.localOnly && client instanceof BwocdBackend;
   const remoteMsg = (spec: ToolSpec) =>
     `⚠️ ${spec.name.replace(/^bwoc_/, "")} isn't available over a remote bwocd host ` +
     `(agent-daemon lifecycle / host diagnostics are local-CLI only). Switch to the ` +
@@ -340,16 +349,18 @@ export function registerBwocTools(
   for (const spec of TOOL_SPECS) {
     const tool: vscode.LanguageModelTool<Record<string, unknown>> = {
       async invoke(options) {
+        // One client per invocation, for both the remote check and the run.
+        const client = getClient();
         // Short-circuit local-only tools on a remote host — a clear message,
         // not a confirm-then-localOnly-error.
-        if (remoteBlocks(spec)) {
+        if (remoteBlocks(spec, client)) {
           return new vscode.LanguageModelToolResult([
             new vscode.LanguageModelTextPart(remoteMsg(spec)),
           ]);
         }
         const input = (options.input ?? {}) as Record<string, unknown>;
         try {
-          const text = await spec.run(getClient(), input);
+          const text = await spec.run(client, input);
           return new vscode.LanguageModelToolResult([new vscode.LanguageModelTextPart(text)]);
         } catch (err) {
           return new vscode.LanguageModelToolResult([
@@ -359,7 +370,7 @@ export function registerBwocTools(
       },
       prepareInvocation(options) {
         // No scary confirmation for a tool that can't run on this host.
-        if (remoteBlocks(spec)) {
+        if (remoteBlocks(spec, getClient())) {
           return { invocationMessage: remoteMsg(spec) };
         }
         const input = (options.input ?? {}) as Record<string, unknown>;

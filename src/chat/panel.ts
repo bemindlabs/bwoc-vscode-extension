@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import * as vscode from "vscode";
 
+import { isChatInput } from "./proto";
 import { ChatSession } from "./session";
 
 /** One live chat webview bound to one ChatSession (one agent). */
@@ -25,7 +26,11 @@ export class ChatPanel {
     );
 
     // webview → ext: ChatInput (user text, permission answer, mode, quit).
-    this.panel.webview.onDidReceiveMessage((msg) => session.send(msg));
+    this.panel.webview.onDidReceiveMessage((msg: unknown) => {
+      if (isChatInput(msg)) {
+        session.send(msg);
+      }
+    });
 
     this.panel.onDidDispose(() => session.dispose());
     session.start();
@@ -112,8 +117,9 @@ function renderHtml(agent: string): string {
   }
   document.getElementById("send").addEventListener("click", send);
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); send(); } });
-  document.getElementById("mode").addEventListener("change", (e) => {
-    vscode.postMessage({ type: "set_mode", mode: e.target.value });
+  const modeSelect = document.getElementById("mode");
+  modeSelect.addEventListener("change", () => {
+    vscode.postMessage({ type: "set_mode", mode: modeSelect.value });
   });
   document.getElementById("forget").addEventListener("click", () => {
     vscode.postMessage({ type: "forget" });
@@ -143,7 +149,10 @@ function renderHtml(agent: string): string {
         p.appendChild(document.createElement("br")); p.appendChild(yes); p.appendChild(no);
         log.appendChild(p); log.scrollTop = log.scrollHeight; break;
       }
-      case "mode_changed": add("sys", "mode → " + m.mode); break;
+      case "mode_changed":
+        // Keep the dropdown in sync when the mode changes from the harness side.
+        if (Array.from(modeSelect.options).some((o) => o.value === m.mode)) modeSelect.value = m.mode;
+        add("sys", "mode → " + m.mode); break;
       case "team_message": add("sys", "👥 " + m.from + ": " + m.text); break;
       case "compacted": add("sys", "context compacted — removed " + m.removed + " message(s)"); break;
       case "turn_end": current = null; break;

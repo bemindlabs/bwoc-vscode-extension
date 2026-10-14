@@ -22,8 +22,6 @@ export interface AgentDetail extends AgentSummary {
   resources: { memories: number; mindsets: number; skills: number };
 }
 
-/** Transport-agnostic view of the fleet. P1 ships only the CLI backend; a bwocd
- *  (signed-HTTP) backend lands in P2 behind the same interface. */
 /** Result of `bwoc run --task … <agent> --json` — one headless task. */
 export interface RunResult {
   agent: string;
@@ -32,7 +30,9 @@ export interface RunResult {
   output: string;
 }
 
-export type Capability = "read" | "write" | "exec" | "dangerous";
+/** A bwocd capability. The known tiers autocomplete; any other string is kept
+ *  so a newer bwocd's caps still type-check (they arrive as unvalidated JSON). */
+export type Capability = "read" | "write" | "exec" | "dangerous" | (string & {});
 
 /** bwocd `GET /whoami` — this controller's approved identity + capabilities. */
 export interface WhoAmI {
@@ -96,6 +96,8 @@ export interface CheckReport {
   violations: string[];
 }
 
+/** Transport-agnostic view of the fleet: the local CLI backend and the bwocd
+ *  (signed-HTTP) backend both implement it. */
 export interface BwocClient {
   list(): Promise<AgentSummary[]>;
   status(agentId: string): Promise<AgentDetail>;
