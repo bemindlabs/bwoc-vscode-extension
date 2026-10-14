@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.9.8] — 2026-10-14
+
 ### Fixed
 
 - **Controller identity stays consistent.** A lost settings entry no longer rotates the key held in SecretStorage, and a freshly generated key always gets a fresh controller id instead of reusing an id bwocd has enrolled under the old key.
