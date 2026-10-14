@@ -4,8 +4,8 @@ import type { AddressInfo } from "node:net";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { BwocdBackend } from "../src/bwoc/bwocd";
-import { canonicalPath, signingPayload } from "../src/bwoc/canonical";
+import { BwocdBackend, BwocdError } from "../src/bwoc/bwocd";
+import { canonicalPath, sha256Hex, signingPayload } from "../src/bwoc/canonical";
 import { Signer, type ConfigStore, type KeyStore } from "../src/bwoc/signer";
 
 // End-to-end proof that the signing layer and the HTTP layer actually meet: a
@@ -42,12 +42,27 @@ function publicKeyFromRawHex(hex: string): KeyObject {
 }
 
 /** A server that verifies the request signature against `verifyPubHex`, then
- *  serves `routes` by pathname. */
+ *  serves `routes` by pathname. Request bodies are recorded in `bodies` (only
+ *  when their bytes match the signed X-BWOC-Body-SHA256). */
 async function startServer(
   verifyPubHex: string,
   routes: Record<string, unknown>,
-): Promise<{ base: string; close: () => void }> {
-  const server = http.createServer((req, res) => {
+): Promise<{ base: string; close: () => void; bodies: unknown[] }> {
+  const bodies: unknown[] = [];
+  const server = http.createServer(async (req, res) => {
+    const chunks: Buffer[] = [];
+    for await (const c of req) {
+      chunks.push(c as Buffer);
+    }
+    const raw = Buffer.concat(chunks);
+    if (sha256Hex(raw) !== String(req.headers["x-bwoc-body-sha256"] ?? "")) {
+      res.writeHead(401);
+      res.end("body hash mismatch");
+      return;
+    }
+    if (raw.length > 0) {
+      bodies.push(JSON.parse(raw.toString("utf8")));
+    }
     const [pathname, query] = (req.url ?? "").split("?", 2);
     const payload = signingPayload(
       String(req.headers["x-bwoc-agent"] ?? ""),
@@ -78,7 +93,16 @@ async function startServer(
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const { port } = server.address() as AddressInfo;
-  return { base: `http://127.0.0.1:${port}`, close: () => server.close() };
+  return {
+    base: `http://127.0.0.1:${port}`,
+    // Drop keep-alive sockets (fetch/undici pools them) so close() can't leave
+    // open handles behind.
+    close: () => {
+      server.closeAllConnections();
+      server.close();
+    },
+    bodies,
+  };
 }
 
 describe("BwocdBackend signed HTTP round-trip", () => {
@@ -198,6 +222,8 @@ describe("BwocdBackend signed HTTP round-trip", () => {
 
     const teams = await new BwocdBackend(srv.base, signer).teams();
     expect(teams).toEqual([{ name: "tianting", members: ["agent-yudi"], createdAt: "x" }]);
+    // The signed body carried the verb as argv (and its hash matched the signature).
+    expect(srv.bodies).toEqual([{ argv: ["team", "list", "--json"] }]);
   });
 
   it("returns send() confirmation from /cli stdout", async () => {
@@ -209,6 +235,7 @@ describe("BwocdBackend signed HTTP round-trip", () => {
     });
     closer = srv.close;
     expect(await new BwocdBackend(srv.base, signer).send("agent-anna", "hi")).toBe("Sent to agent-anna.");
+    expect(srv.bodies).toEqual([{ argv: ["send", "agent-anna", "hi"] }]);
   });
 
   it("throws with stderr when a /cli verb exits non-zero", async () => {
@@ -227,11 +254,14 @@ describe("BwocdBackend signed HTTP round-trip", () => {
     const signer = new Signer(secrets, config);
     await signer.ensureIdentity();
     // Verify against a DIFFERENT identity's key so the real signature fails.
-    const other = new Signer(stores().secrets, stores().config);
+    const otherStores = stores();
+    const other = new Signer(otherStores.secrets, otherStores.config);
     const { publicKeyHex: wrongPub } = await other.ensureIdentity();
     const srv = await startServer(wrongPub, { "/fleet": { agents: [] } });
     closer = srv.close;
 
-    await expect(new BwocdBackend(srv.base, signer).list()).rejects.toThrow(/rejected|401/i);
+    const pending = new BwocdBackend(srv.base, signer).list();
+    await expect(pending).rejects.toBeInstanceOf(BwocdError);
+    await expect(pending).rejects.toThrow(/rejected|401/i);
   });
 });

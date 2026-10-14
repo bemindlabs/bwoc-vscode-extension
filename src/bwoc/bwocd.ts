@@ -100,17 +100,33 @@ export class BwocdBackend implements BwocClient {
       const errBody = await res.text().catch(() => "");
       if (res.status === 401 || res.status === 403) {
         throw new BwocdError(
-          `bwocd rejected this controller (${res.status}). Enroll it (BWOC: Enroll This Controller) and have the operator approve it with the caps you need.`,
+          `bwocd rejected this controller (${res.status}). Enroll it (BWOC: Enroll This Controller (remote bwocd)) and have the operator approve it with the caps you need.`,
         );
       }
       throw new BwocdError(`bwocd ${res.status}: ${errBody || res.statusText}`);
     }
     const text = await res.text();
-    return (text ? JSON.parse(text) : null) as T;
+    if (!text.trim()) {
+      return null as T;
+    }
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new BwocdError(`bwocd ${method} ${pathname} returned invalid JSON: ${text.slice(0, 200)}`);
+    }
+  }
+
+  /** Signed GET of a route that must answer with a JSON object. */
+  private async getObject<T extends object>(path: string): Promise<T> {
+    const body = await this.get<T | null>(path);
+    if (body === null || typeof body !== "object") {
+      throw new BwocdError(`bwocd GET ${path.split("?", 1)[0]} returned an empty or non-object body.`);
+    }
+    return body;
   }
 
   async list(): Promise<AgentSummary[]> {
-    const snap = await this.get<{ agents: RawAgent[] | null }>("/fleet");
+    const snap = await this.getObject<{ agents?: RawAgent[] | null }>("/fleet");
     return (snap.agents ?? []).map((a) => ({
       id: a.id,
       backend: a.backend ?? "",
@@ -126,7 +142,7 @@ export class BwocdBackend implements BwocClient {
     // Unlike /fleet, bwocd's /agents/:id/status returns `bwoc status --json`
     // VERBATIM — `{ workspace, agents: [ {…the real fields…} ] }` — it does NOT
     // unwrap. Read agents[0]; a flat read here silently defaults every field.
-    const snap = await this.get<{ agents?: RawDetail[] | null }>(
+    const snap = await this.getObject<{ agents?: RawDetail[] | null }>(
       `/agents/${encodeURIComponent(agentId)}/status`,
     );
     const d = snap.agents?.[0];
@@ -176,15 +192,19 @@ export class BwocdBackend implements BwocClient {
    * from an unreachable host, which throws a network `BwocdError`).
    */
   async whoami(): Promise<import("./types").WhoAmI> {
-    const raw = await this.get<{
-      controller_id?: string;
-      caps?: string[];
-      bwocd_version?: string;
+    const raw = await this.getObject<{
+      controller_id?: unknown;
+      caps?: unknown;
+      bwocd_version?: unknown;
     }>("/whoami");
+    // A 200 with no identity must not read as "connected as <blank>".
+    if (typeof raw.controller_id !== "string" || raw.controller_id === "") {
+      throw new BwocdError("bwocd /whoami returned no controller_id — is this a bwocd host?");
+    }
     return {
-      controllerId: raw.controller_id ?? "",
-      caps: (raw.caps ?? []) as import("./types").Capability[],
-      bwocdVersion: raw.bwocd_version ?? "",
+      controllerId: raw.controller_id,
+      caps: Array.isArray(raw.caps) ? raw.caps.filter((c): c is string => typeof c === "string") : [],
+      bwocdVersion: typeof raw.bwocd_version === "string" ? raw.bwocd_version : "",
     };
   }
 
@@ -201,12 +221,17 @@ export class BwocdBackend implements BwocClient {
       exit_code?: number;
       stdout?: string;
       stderr?: string;
-    }>("POST", "/cli", { argv });
-    if (res.ok === false || (res.exit_code ?? 0) !== 0) {
-      const detail = res.stderr ? `: ${res.stderr}` : "";
-      throw new BwocdError(`bwoc ${argv.join(" ")} failed (exit ${res.exit_code ?? "?"})${detail}`);
+    } | null>("POST", "/cli", { argv });
+    // Fail closed: a body without a numeric exit_code / string stdout is not a
+    // /cli result, so it must not pass as a silent success.
+    if (!res || typeof res.exit_code !== "number" || typeof res.stdout !== "string") {
+      throw new BwocdError(`bwoc ${argv.join(" ")}: bwocd /cli returned a malformed result.`);
     }
-    return res.stdout ?? "";
+    if (res.ok === false || res.exit_code !== 0) {
+      const detail = res.stderr ? `: ${res.stderr}` : "";
+      throw new BwocdError(`bwoc ${argv.join(" ")} failed (exit ${res.exit_code})${detail}`);
+    }
+    return res.stdout;
   }
 
   async send(to: string, message: string): Promise<string> {
@@ -223,10 +248,13 @@ export class BwocdBackend implements BwocClient {
       exit_code?: number;
       duration_ms?: number;
       output?: string;
-    }>("POST", `/agents/${encodeURIComponent(agentId)}/chat`, { prompt: task }, 15 * 60 * 1000);
+    } | null>("POST", `/agents/${encodeURIComponent(agentId)}/chat`, { prompt: task }, 15 * 60 * 1000);
+    if (!raw || typeof raw.exit_code !== "number") {
+      throw new BwocdError(`bwocd returned no run result (exit_code) for ${agentId}.`);
+    }
     return {
       agent: raw.agent ?? agentId,
-      exitCode: raw.exit_code ?? 0,
+      exitCode: raw.exit_code,
       durationMs: raw.duration_ms ?? 0,
       output: raw.output ?? "",
     };
@@ -251,7 +279,7 @@ export class BwocdBackend implements BwocClient {
   async inbox(agentId: string): Promise<InboxMessage[]> {
     // Dedicated read route — bwocd exposes GET /agents/:id/inbox returning
     // `bwoc inbox <id> --json` verbatim ({ agent, inbox, messages[] }).
-    const raw = await this.get<{
+    const raw = await this.getObject<{
       messages?: Array<{
         from?: string;
         message?: string;

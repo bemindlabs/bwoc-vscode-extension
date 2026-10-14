@@ -147,6 +147,32 @@ describe("write tool specs are confirmed", () => {
     }
   });
 
+  it("write tools refuse blank required inputs instead of sending them", async () => {
+    let calls = 0;
+    const c = fakeClient({
+      send: async () => {
+        calls++;
+        return "";
+      },
+      broadcast: async () => {
+        calls++;
+        return "";
+      },
+      run: async () => {
+        calls++;
+        return { agent: "a", exitCode: 0, durationMs: 0, output: "" };
+      },
+      taskAdd: async () => {
+        calls++;
+      },
+    });
+    await expect(spec("bwoc_sendMessage").run(c, { to: "agent-x", message: "   " })).rejects.toThrow(/message/);
+    await expect(spec("bwoc_broadcast").run(c, { message: "" })).rejects.toThrow(/message/);
+    await expect(spec("bwoc_runTask").run(c, { agentId: "a", task: " " })).rejects.toThrow(/task/);
+    await expect(spec("bwoc_taskAdd").run(c, { team: "t", title: "" })).rejects.toThrow(/title/);
+    expect(calls).toBe(0);
+  });
+
   it("sendMessage confirmation names the recipient", () => {
     const c = spec("bwoc_sendMessage").confirm!({ to: "agent-x", message: "hi" });
     expect(c.title).toBe("Send message");

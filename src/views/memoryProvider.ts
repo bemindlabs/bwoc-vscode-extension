@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import { BwocCliError, BwocdError, type BwocClient, type MemoryEntry } from "../bwoc";
+import { BwocCliError, BwocdBackend, BwocdError, type BwocClient, type MemoryEntry } from "../bwoc";
 
 /** Flat tree of workspace-level memory entries (`bwoc memory list`). Clicking an
  *  entry opens its contents (see `bwoc.openMemory` in extension.ts). */
@@ -23,7 +23,8 @@ export class MemoryProvider implements vscode.TreeDataProvider<MemoryEntry> {
     const item = new vscode.TreeItem(entry.name, vscode.TreeItemCollapsibleState.None);
     item.description = `${(entry.sizeBytes / 1024).toFixed(1)} KB`;
     item.iconPath = new vscode.ThemeIcon("book");
-    if (entry.path) {
+    // Only a local entry's path is a real file here; a bwocd path is remote.
+    if (entry.path && !(this.client instanceof BwocdBackend)) {
       item.resourceUri = vscode.Uri.file(entry.path);
     }
     item.command = {

@@ -45,6 +45,24 @@ describe("Signer", () => {
     expect(a.publicKeyHex).toHaveLength(64); // 32 bytes
   });
 
+  it("keeps the stored key when the non-secret config was lost (no silent rotation)", async () => {
+    const { secrets } = stores();
+    const first = await new Signer(secrets, stores().config).ensureIdentity();
+    // Same SecretStorage, fresh (empty) globalState — e.g. state was cleared.
+    const again = await new Signer(secrets, stores().config).ensureIdentity();
+    expect(again).toEqual(first);
+  });
+
+  it("a fresh key gets a fresh controller id, never the old id", async () => {
+    const { config } = stores();
+    const first = await new Signer(stores().secrets, config).ensureIdentity();
+    // The secret key is gone but the old id/public key remain in config.
+    const next = await new Signer(stores().secrets, config).ensureIdentity();
+    expect(next.publicKeyHex).not.toBe(first.publicKeyHex);
+    expect(next.controllerId).not.toBe(first.controllerId);
+    expect(next.controllerId).toBe(`vscode-${next.publicKeyHex.slice(0, 8)}`);
+  });
+
   it("emits the five X-BWOC headers with a signature that verifies", async () => {
     const { secrets, config } = stores();
     const s = new Signer(secrets, config);

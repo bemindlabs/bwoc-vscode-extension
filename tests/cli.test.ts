@@ -144,4 +144,12 @@ describe("parseRunResult", () => {
       output: "done",
     });
   });
+
+  it("throws instead of reporting a clean exit when agent / exit_code are missing", async () => {
+    const { parseRunResult, BwocCliError } = await import("../src/bwoc/cli");
+    expect(() => parseRunResult(JSON.stringify({ output: "x" }))).toThrow(BwocCliError);
+    expect(() => parseRunResult(JSON.stringify({ agent: "a" }))).toThrow(/exit_code/);
+    expect(() => parseRunResult(JSON.stringify({ agent: "a", exit_code: "0" }))).toThrow(BwocCliError);
+    expect(() => parseRunResult("null")).toThrow(BwocCliError);
+  });
 });

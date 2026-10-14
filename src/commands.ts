@@ -1,11 +1,9 @@
-import * as path from "node:path";
-
 import * as vscode from "vscode";
 
-import { activeWorkspaceRoot, BwocCliError, BwocdBackend, type BwocClient } from "./bwoc";
-import { BwocdError } from "./bwoc";
+import { activeWorkspaceRoot, BwocCliError, BwocdBackend, BwocdError, type BwocClient } from "./bwoc";
 import { ChatPanel } from "./chat/panel";
 import { buildChatSpawn, ChatSession } from "./chat/session";
+import { agentDirIn } from "./paths";
 
 /** Message shown for any backend failure, unwrapped to its clean text. */
 function errText(err: unknown): string {
@@ -26,7 +24,7 @@ async function pickAgent(client: BwocClient, placeHolder: string): Promise<strin
     return undefined;
   }
   if (agents.length === 0) {
-    vscode.window.showInformationMessage("BWOC: no agents in this workspace.");
+    vscode.window.showInformationMessage("BWOC: no agents in this fleet.");
     return undefined;
   }
   const pick = await vscode.window.showQuickPick(
@@ -121,6 +119,15 @@ export function registerCommands(
       vscode.window.showErrorMessage("BWOC: no workspace root — open a folder containing .bwoc/.");
       return;
     }
+    // The harness runs with the agent dir as cwd: refuse a path that is empty,
+    // absolute, or escapes the workspace rather than launch it elsewhere.
+    const agentDir = agentDirIn(wsRoot, detail.path);
+    if (!agentDir) {
+      vscode.window.showErrorMessage(
+        `BWOC: ${to} has no agent directory inside the workspace (path "${detail.path}").`,
+      );
+      return;
+    }
     const model = detail.primaryModel || "auto";
     if (model === "auto") {
       // B3: harness --chat can't resolve "auto" yet, so buildChatSpawn passes
@@ -132,7 +139,7 @@ export function registerCommands(
     }
     const spawnSpec = buildChatSpawn({
       bwocBinaryPath: cfg.get<string>("binaryPath", "bwoc") || "bwoc",
-      agentDir: path.join(wsRoot, detail.path),
+      agentDir,
       backend: detail.backend,
       model,
     });
@@ -180,7 +187,8 @@ export function registerCommands(
       placeHolder: "Describe the task to run headless (captured, non-interactive)…",
       validateInput: (v) => (v.trim().length === 0 ? "Task cannot be empty" : undefined),
     });
-    if (task === undefined || task.trim().length === 0) {
+    const taskText = task?.trim();
+    if (!taskText) {
       return;
     }
     try {
@@ -190,7 +198,7 @@ export function registerCommands(
           title: `BWOC: running task on ${to}…`,
           cancellable: false,
         },
-        () => client.run(to, task),
+        () => client.run(to, taskText),
       );
       output.appendLine(
         `[run → ${to}] exit ${result.exitCode} · ${result.durationMs}ms\n${result.output}`,
@@ -425,7 +433,8 @@ export function registerCommands(
       validateInput: (v) =>
         /^[a-z0-9][a-z0-9-]*$/.test(v.trim()) ? undefined : "lowercase letters, digits, hyphen; no leading hyphen",
     });
-    if (name === undefined || name.trim().length === 0) {
+    const agentName = name?.trim();
+    if (!agentName) {
       return;
     }
     const backend = await vscode.window.showQuickPick(
@@ -437,10 +446,10 @@ export function registerCommands(
     }
     try {
       const outcome = await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Notification, title: `BWOC: incarnating ${name}…` },
-        () => getClient().newAgent(name.trim(), backend),
+        { location: vscode.ProgressLocation.Notification, title: `BWOC: incarnating ${agentName}…` },
+        () => getClient().newAgent(agentName, backend),
       );
-      output.appendLine(`[new → ${name}] ${outcome}`);
+      output.appendLine(`[new → ${agentName}] ${outcome}`);
       vscode.window.showInformationMessage(`BWOC: ${outcome}`);
       await vscode.commands.executeCommand("bwoc.refreshFleet");
     } catch (err) {
@@ -532,8 +541,8 @@ export function registerCommands(
 
   const outboxFlush = async (arg?: unknown) => {
     const client = getClient();
-    // A context-menu invocation on a Fleet node preselects that peer; otherwise
-    // pick all peers or one specific agent's spool.
+    // A caller that passes an agent id (or a Fleet node) as the command argument
+    // preselects that peer; otherwise pick all peers or one specific agent's spool.
     const preset = agentIdFrom(arg);
     let peer: string | undefined = preset;
     if (!preset) {

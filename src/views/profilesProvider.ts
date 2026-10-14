@@ -4,10 +4,12 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import { activeWorkspaceRoot, BwocCliError, type BwocClient } from "../bwoc";
+import { agentDirIn } from "../paths";
 
-/** The profile slots worth surfacing for editing (in display order). Backend
- *  symlinks (CLAUDE.md → AGENTS.md, …), `.bwoc/`, docs, scripts, connectors are
- *  intentionally hidden — this is the *profile*, not the whole directory. */
+/** The profile slots worth surfacing for editing (in display order), including
+ *  `interconnect/`. Backend symlinks (CLAUDE.md → AGENTS.md, …), `.bwoc/`, docs
+ *  and scripts are intentionally hidden — this is the *profile*, not the whole
+ *  directory. */
 const SLOT_DIRS = ["persona", "mindsets", "skills", "memories", "interconnect"];
 const TOP_FILES = ["config.manifest.json", "AGENTS.md", "MEMORY.md"];
 const EDITABLE = /\.(md|json|toml|ya?ml)$/i;
@@ -71,9 +73,16 @@ export class ProfilesProvider implements vscode.TreeDataProvider<ProfileNode> {
         vscode.window.showErrorMessage(`BWOC: ${msg}`);
         return [];
       }
-      return agents
-        .map((a) => ({ kind: "agent" as const, id: a.id, dir: path.join(root, a.path) }))
-        .filter((n) => isDir(n.dir));
+      // Only agents whose path resolves inside the workspace: an empty path would
+      // collapse to the root and an absolute/`..` one would surface outside files.
+      const out: ProfileNode[] = [];
+      for (const a of agents) {
+        const dir = agentDirIn(root, a.path);
+        if (dir && isDir(dir)) {
+          out.push({ kind: "agent", id: a.id, dir });
+        }
+      }
+      return out;
     }
 
     if (node.kind === "agent") {

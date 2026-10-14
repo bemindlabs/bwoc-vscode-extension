@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import * as path from "node:path";
 import { promisify } from "node:util";
 
 import type {
@@ -118,10 +120,17 @@ export function parseMemories(stdout: string): MemoryEntry[] {
   return (doc.entries ?? []).map((e) => ({
     name: e.name,
     sizeBytes: e.size_bytes ?? 0,
-    // Join without node:path so the pure parser stays dependency-free; the CLI
-    // dir is absolute and callers normalize via Uri.file. Empty dir → empty path.
-    path: dir ? `${dir.replace(/\/+$/, "")}/${e.name}` : "",
+    // A plain file name only: a separator or `..` could point outside the memory
+    // dir, so such an entry gets no path (callers fall back to `memory show`).
+    // Empty dir → empty path.
+    path: dir && isPlainFileName(e.name) ? path.join(dir, e.name) : "",
   }));
+}
+
+function isPlainFileName(name: unknown): name is string {
+  return (
+    typeof name === "string" && name !== "" && name !== "." && name !== ".." && !/[\\/]/.test(name)
+  );
 }
 
 export function parseInbox(stdout: string): InboxMessage[] {
@@ -163,17 +172,34 @@ export function parseCheck(stdout: string): CheckReport {
 
 export function parseRunResult(stdout: string): RunResult {
   const doc = JSON.parse(stdout) as {
-    agent?: string;
-    exit_code?: number;
+    agent?: unknown;
+    exit_code?: unknown;
     duration_ms?: number;
     output?: string;
-  };
+  } | null;
+  // Without these the envelope isn't a run result; defaulting would report a
+  // failed or garbled run as a clean "exit 0".
+  if (!doc || typeof doc.agent !== "string" || typeof doc.exit_code !== "number") {
+    throw new BwocCliError("bwoc run --json returned no run result (missing agent / exit_code)");
+  }
   return {
-    agent: doc.agent ?? "",
-    exitCode: doc.exit_code ?? 0,
+    agent: doc.agent,
+    exitCode: doc.exit_code,
     durationMs: doc.duration_ms ?? 0,
     output: doc.output ?? "",
   };
+}
+
+function isJson(text: string): boolean {
+  if (!text.trim()) {
+    return false;
+  }
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ── CLI backend ─────────────────────────────────────────────────────────────
@@ -207,12 +233,23 @@ export class CliBackend implements BwocClient {
     } catch (err) {
       const e = err as NodeJS.ErrnoException;
       if (e.code === "ENOENT") {
-        throw new BwocCliError(
-          `bwoc not found at "${this.opts.binaryPath}". Set "bwoc.binaryPath" in Settings.`,
-        );
+        throw this.notFound();
       }
       throw new BwocCliError(`bwoc ${args.join(" ")} failed: ${e.message}`);
     }
+  }
+
+  /** ENOENT from execFile means either the binary or the cwd (the workspace)
+   *  is missing — name the one that actually is. */
+  private notFound(): BwocCliError {
+    if (this.opts.workspace && !existsSync(this.opts.workspace)) {
+      return new BwocCliError(
+        `BWOC workspace "${this.opts.workspace}" does not exist. Fix "bwoc.workspace" in Settings.`,
+      );
+    }
+    return new BwocCliError(
+      `bwoc not found at "${this.opts.binaryPath}". Set "bwoc.binaryPath" in Settings.`,
+    );
   }
 
   async list(): Promise<AgentSummary[]> {
@@ -310,14 +347,15 @@ export class CliBackend implements BwocClient {
       });
       return stdout;
     } catch (err) {
-      const e = err as NodeJS.ErrnoException & { stdout?: string };
+      const e = err as NodeJS.ErrnoException & { stdout?: string | Buffer; code?: unknown; killed?: boolean };
       if (e.code === "ENOENT") {
-        throw new BwocCliError(
-          `bwoc not found at "${this.opts.binaryPath}". Set "bwoc.binaryPath" in Settings.`,
-        );
+        throw this.notFound();
       }
-      if (typeof e.stdout === "string" && e.stdout.trim()) {
-        return e.stdout; // non-zero exit but a report was emitted
+      // Only a real non-zero exit that still printed a JSON report is a result;
+      // a timeout/signal kill (no numeric code) or usage text on stdout is not.
+      const stdout = e.stdout === undefined ? "" : String(e.stdout);
+      if (typeof e.code === "number" && e.code !== 0 && !e.killed && isJson(stdout)) {
+        return stdout;
       }
       throw new BwocCliError(`bwoc ${args.join(" ")} failed: ${e.message}`);
     }

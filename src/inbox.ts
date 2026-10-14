@@ -42,6 +42,9 @@ export class InboxWatcher {
 
   start(pollSeconds: number): void {
     this.stop();
+    // Always start from a clean baseline: if the priming tick fails, a stale
+    // snapshot from a previous run would raise bogus notifications.
+    this.snapshot = new Map();
     if (pollSeconds <= 0) {
       return;
     }
@@ -61,7 +64,7 @@ export class InboxWatcher {
       } catch (e) {
         // Fail-quiet in the UI (the Fleet view already reports outages), but log
         // so a persistently-failing poll is diagnosable instead of vanishing.
-        this.output?.appendLine(`[inbox] poll failed: ${(e as Error).message}`);
+        this.output?.appendLine(`[inbox] poll failed: ${e instanceof Error ? e.message : String(e)}`);
         return;
       }
       if (!prime) {

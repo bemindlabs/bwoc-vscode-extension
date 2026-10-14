@@ -39,7 +39,13 @@ export class FleetStatusBar {
       this.item.tooltip = `${running} running of ${agents.length} agents on ${this.host} — click to refresh`;
     } catch {
       this.item.text = "$(warning) BWOC";
-      this.item.tooltip = `BWOC fleet unavailable (${this.host}) — check bwoc.binaryPath / remote host`;
+      // Name the setting that applies to the active host: the binary path only
+      // matters for the local CLI; a remote fleet depends on its configured URL.
+      const hint =
+        this.host === "Local CLI"
+          ? "check bwoc.binaryPath / bwoc.workspace"
+          : "check that host's URL in bwoc.remote.hosts / bwoc.remote.url and that bwocd is reachable";
+      this.item.tooltip = `BWOC fleet unavailable (${this.host}) — ${hint}`;
     }
   }
 

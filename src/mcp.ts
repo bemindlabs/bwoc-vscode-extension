@@ -15,10 +15,13 @@ export function mcpServerArgs(workspaceRoot: string): string[] {
  * an operator step. No-ops on editors without the MCP provider API.
  */
 export function registerMcpProvider(context: vscode.ExtensionContext): void {
-  const lm = vscode.lm as typeof vscode.lm & {
-    registerMcpServerDefinitionProvider?: typeof vscode.lm.registerMcpServerDefinitionProvider;
-  };
-  if (typeof lm.registerMcpServerDefinitionProvider !== "function") {
+  // `vscode.lm` itself can be missing on editors/forks without the LM API.
+  const lm = vscode.lm as
+    | (typeof vscode.lm & {
+        registerMcpServerDefinitionProvider?: typeof vscode.lm.registerMcpServerDefinitionProvider;
+      })
+    | undefined;
+  if (typeof lm?.registerMcpServerDefinitionProvider !== "function") {
     return;
   }
 
